@@ -213,6 +213,11 @@
       const centerX = canvas.width / 2;  
       const centerY = canvas.height / 2;
 
+      // Sweep bounds for this frame  
+      const trailLength = Math.PI / 6; // 30° trail  
+      let sweepStartAngle = sweepAngle - trailLength;  
+      let sweepEndAngle = sweepAngle;
+
       contacts.forEach((contact, i) => {  
         // Record current position for trail  
         if (!contact.trail) contact.trail = [];  
@@ -249,18 +254,22 @@
         let angleFromCenter = Math.atan2(dy, dx);  
         if (angleFromCenter < 0) angleFromCenter += Math.PI * 2;
 
-        // Determine if contact is within current sweep arc  
-        const sweepArcSize = Math.PI / 6; // 30° wedge  
+        // Determine if contact is within current sweep arc — FIXED to match actual sweep bounds  
         let inSweep = false;
         
-        const angleDiff1 = Math.abs(angleFromCenter - sweepAngle);  
-        const angleDiff2 = Math.abs(angleFromCenter - (sweepAngle + Math.PI * 2));  
-        const angleDiff3 = Math.abs((angleFromCenter + Math.PI * 2) - sweepAngle);  
-        const minDiff = Math.min(angleDiff1, angleDiff2, angleDiff3);
-        
-        inSweep = minDiff < sweepArcSize / 2;
+        // Normalize sweep angles to [0, 2π)  
+        while (sweepStartAngle < 0) sweepStartAngle += Math.PI * 2;
+        while (sweepEndAngle > Math.PI * 2) sweepEndAngle -= Math.PI * 2;
 
-        // Draw contact blip  
+        if (sweepStartAngle <= sweepEndAngle) {  
+          // Normal arc (no wrap around 0°)  
+          inSweep = angleFromCenter >= sweepStartAngle && angleFromCenter <= sweepEndAngle;  
+        } else {  
+          // Arc crosses 0° boundary — split into two ranges  
+          inSweep = angleFromCenter >= sweepStartAngle || angleFromCenter <= sweepEndAngle;  
+        }
+
+        // Draw contact blip (only glow when under the actual sweep)  
         ctx.shadowBlur = inSweep ? 8 : 0;  
         ctx.shadowColor = i === 0 ? "#0f0" : "#f00";  
         
@@ -271,7 +280,7 @@
         ctx.arc(contact.x, contact.y, inSweep ? 4 : 3, 0, Math.PI * 2);  
         ctx.fill();
 
-        // Label (distance and bearing)  
+        // Label (distance and bearing) — only show when under sweep or friendly  
         if (inSweep || i === 0) {  
           ctx.fillStyle = "#8f8";  
           ctx.font = "10px monospace";  
@@ -295,12 +304,28 @@
 
       // Single sweep wedge — shorter trail for sharper look  
       const trailLength = Math.PI / 6; // 30° trail (was 60°)  
-      const startAngle = sweepAngle - trailLength;  
+      let startAngle = sweepAngle - trailLength;  
       const endAngle = sweepAngle;
 
-      ctx.beginPath();  
-      ctx.moveTo(centerX, centerY);  
-      ctx.arc(centerX, centerY, radius, startAngle, endAngle);  
+      if (startAngle < 0) {  
+        // Arc crosses top — draw in two parts  
+        ctx.beginPath();  
+        ctx.moveTo(centerX, centerY);  
+        ctx.arc(centerX, centerY, radius, startAngle + Math.PI * 2, Math.PI * 2);  
+        ctx.arc(centerX, centerY, radius, 0, endAngle);  
+      } else if (endAngle > Math.PI * 2) {  
+        // Arc crosses bottom — draw in two parts  
+        ctx.beginPath();  
+        ctx.moveTo(centerX, centerY);  
+        ctx.arc(centerX, centerY, radius, startAngle, Math.PI * 2);  
+        ctx.arc(centerX, centerY, radius, 0, endAngle - Math.PI * 2);  
+      } else {  
+        // Normal arc (no wrap)  
+        ctx.beginPath();  
+        ctx.moveTo(centerX, centerY);  
+        ctx.arc(centerX, centerY, radius, startAngle, endAngle);  
+      }
+      
       ctx.closePath();
 
       // Radial gradient for glow falloff  
