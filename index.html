@@ -101,8 +101,8 @@
     ];  
       
     let trailData = [];  
-    const MAX_TRAIL_FRAMES = 12; // Sharper, cleaner sweep trail (was 50)  
-    const SWEEP_SPEED = Math.PI / 480; // Radians per frame (~0.75 deg/frame) — half rotation speed  
+    const MAX_TRAIL_FRAMES = 20; // Smoother sweep (was 12)  
+    const SWEEP_SPEED = Math.PI / 320; // Faster rotation (PI/480 → PI/320, ~50% faster)  
     let sweepAngle = 0;  
     let lastTime = performance.now();  
     let frameCount = 0;  
@@ -271,7 +271,7 @@
       });  
     }  
 
-    // Draw radar sweep with authentic phosphor glow — FIXED for clean arc  
+    // Draw radar sweep with authentic phosphor glow — FIXED for smooth arc  
     function drawRadarSweep() {  
       const centerX = canvas.width / 2;  
       const centerY = canvas.height / 2;  
@@ -283,7 +283,7 @@
         trailData.shift();  
       }  
 
-      // Draw each frame in the trail — now with cubic fade for clean arc  
+      // Draw each frame in the trail — quadratic fade for smoothness  
       for (let i = 0; i < trailData.length; i++) {  
         const t = trailData[i];  
         const age = (Date.now() - t) / 500; // Normalize to ~500ms decay  
@@ -314,10 +314,10 @@
           ctx.arc(centerX, centerY, radius, startAngle, endAngle);  
         }
 
-        // Cubic fade: sharp drop-off, no "blinds" effect  
-        const opacity = Math.pow(1 - age, 3) * 0.8;  
+        // Quadratic fade: fills gaps without long tails  
+        const opacity = Math.pow(1 - age, 2) * 0.9;  
         
-        ctx.shadowBlur = 8; // Reduced from 15 to eliminate corner glow bleed  
+        ctx.shadowBlur = 8; // Tight glow to avoid corner bleed  
         ctx.shadowColor = "#0f0";  
         ctx.strokeStyle = `rgba(0, 255, 0, ${opacity})`;  
         ctx.lineWidth = 3;
@@ -325,7 +325,7 @@
         ctx.stroke();  
       }  
 
-      // Update sweep angle for next frame — slower rotation  
+      // Update sweep angle for next frame — faster rotation  
       sweepAngle += SWEEP_SPEED;  
       if (sweepAngle >= Math.PI * 2) {  
         sweepAngle -= Math.PI * 2;  
