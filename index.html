@@ -121,8 +121,8 @@
       }  
     }  
 
-    // Play realistic sonar ping  
-    function playSonarPing() {  
+    // Play realistic sonar ping with optional bearing for spatial panning  
+    function playSonarPing(bearingAngle) {  
       initAudio();  
       
       const osc = audioCtx.createOscillator();  
@@ -134,7 +134,15 @@
       
       // Create spatial effect (stereo panning)  
       const panner = audioCtx.createStereoPanner();  
-      panner.pan.value = Math.random() * 2 - 1; // Random direction  
+      
+      if (typeof bearingAngle !== 'undefined') {  
+        // Map bearing to pan: North=0°, East=90°, South=180°, West=270°  
+        // Pan value: -1 (left) to +1 (right), 0 = center  
+        panner.pan.value = Math.sin(bearingAngle);  
+      } else {  
+        // Random direction if no bearing specified (for manual ping button)  
+        panner.pan.value = Math.random() * 2 - 1;  
+      }
       
       osc.connect(panner);  
       panner.connect(gainNode);  
@@ -144,10 +152,10 @@
       gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);  
       
       osc.start();  
-      osc.stop(audioCtx.currentTime + 0.6);  
+      osc.stop(audioCtx.currentTime + 0.6);
 
       // Visual ping effect  
-      createSonarWaveform();  
+      createSonarWaveform();
     }  
 
     let sonarWaves = [];  
@@ -215,10 +223,15 @@
 
       // Sweep bounds for this frame  
       const trailLength = Math.PI / 6; // 30° trail  
-      let sweepStartAngle = sweepAngle - trailLength;  
+      let sweepStartAngle = sweepAngle - trailLength;
       let sweepEndAngle = sweepAngle;
 
       contacts.forEach((contact, i) => {  
+        // Initialize lastInSweep if not present  
+        if (typeof contact.lastInSweep === 'undefined') {
+          contact.lastInSweep = false;
+        }
+
         // Record current position for trail  
         if (!contact.trail) contact.trail = [];  
         contact.trail.push({ x: contact.x, y: contact.y });  
@@ -269,6 +282,16 @@
           inSweep = angleFromCenter >= sweepStartAngle || angleFromCenter <= sweepEndAngle;  
         }
 
+        // Sonar ping only when sweep *first* reaches contact (transition from !inSweep to inSweep)  
+        if (!contact.lastInSweep && inSweep) {  
+          // Convert radar bearing to pan value for spatial audio  
+          const bearingFromNorth = (Math.PI / 2 - angleFromCenter + Math.PI * 2) % (Math.PI * 2);
+          playSonarPing(bearingFromNorth);
+        }
+
+        // Update lastInSweep state  
+        contact.lastInSweep = inSweep;
+
         // Draw contact blip (only glow when under the actual sweep)  
         ctx.shadowBlur = inSweep ? 8 : 0;  
         ctx.shadowColor = i === 0 ? "#0f0" : "#f00";  
@@ -304,7 +327,7 @@
 
       // Single sweep wedge — shorter trail for sharper look  
       const trailLength = Math.PI / 6; // 30° trail (was 60°)  
-      let startAngle = sweepAngle - trailLength;  
+      let startAngle = sweepAngle - trailLength;
       const endAngle = sweepAngle;
 
       if (startAngle < 0) {  
@@ -470,7 +493,7 @@
 
     // Sonar button handler  
     document.getElementById('sonarBtn').addEventListener('click', () => {  
-      playSonarPing();  
+      playSonarPing(); // Random direction for manual ping  
       
       // Flash the screen slightly to simulate active sonar pulse  
       const flash = document.createElement('div');  
