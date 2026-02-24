@@ -154,11 +154,12 @@
       osc.start();  
       osc.stop(audioCtx.currentTime + 0.6);
 
-      // Visual ping effect  
-      createSonarWaveform();
+      // Visual ping effect — create expanding echo ring at sweep position  
+      createSonarEchoRing(sweepAngle);
     }  
 
-    let sonarWaves = [];  
+    let sonarWaves = []; // Old-style concentric rings  
+    let echoRings = [];  // New: directional echo rings from contacts  
 
     function createSonarWaveform() {  
       sonarWaves.push({  
@@ -167,7 +168,21 @@
         radius: 10,  
         opacity: 0.8  
       });  
-    }  
+    }
+
+    // Create echo ring for contact detection  
+    function createSonarEchoRing(sweepAngle) {  
+      const centerX = canvas.width / 2;  
+      const centerY = canvas.height / 2;
+      
+      echoRings.push({  
+        x: centerX + Math.cos(sweepAngle) * (canvas.width/1.8), // Ring starts near edge  
+        y: centerY + Math.sin(sweepAngle) * (canvas.width/1.8),
+        radius: 5,  
+        opacity: 0.6,
+        maxRadius: canvas.width / 1.2
+      });
+    }
 
     // Draw ocean background with "depth illusion"  
     function drawBackground() {  
@@ -230,6 +245,7 @@
         // Initialize lastInSweep if not present  
         if (typeof contact.lastInSweep === 'undefined') {
           contact.lastInSweep = false;
+          contact.undetectedFrames = 0; // For fade-out
         }
 
         // Record current position for trail  
@@ -292,20 +308,45 @@
         // Update lastInSweep state  
         contact.lastInSweep = inSweep;
 
-        // Draw contact blip (only glow when under the actual sweep)  
+        // Handle fade-out if not detected for several sweeps
+        if (!inSweep) {
+          contact.undetectedFrames++;
+        } else {
+          contact.undetectedFrames = 0;
+        }
+
+        // Calculate signal strength based on proximity to sweep center (0=strong, 1=weak)
+        const angleDiff1 = Math.abs(angleFromCenter - sweepAngle);
+        const angleDiff2 = Math.abs(angleFromCenter - (sweepAngle + Math.PI * 2));
+        const angleDiff3 = Math.abs((angleFromCenter + Math.PI * 2) - sweepAngle);
+        const minAngleDiff = Math.min(angleDiff1, angleDiff2, angleDiff3);
+        // Normalize: 0 at center of sweep, 1 at edges
+        const signalStrength = Math.min(minAngleDiff / (trailLength/2), 1);
+
+        // Fade out if undetected for too long
+        let contactAlpha = 1;
+        if (contact.undetectedFrames > 5) {
+          contactAlpha = Math.max(0, 1 - (contact.undetectedFrames - 5) * 0.2);
+        }
+
+        // Draw contact blip with signal strength and fade  
         ctx.shadowBlur = inSweep ? 8 : 0;  
         ctx.shadowColor = i === 0 ? "#0f0" : "#f00";  
         
-        const color = i === 0 ? "rgba(0,255,0,1)" : "rgba(255,0,0,0.7)";  
-        ctx.fillStyle = color;  
+        const baseColor = i === 0 ? "rgba(0,255,0," : "rgba(255,0,0,";  
+        // Signal strength affects glow: stronger when closer to sweep center
+        ctx.fillStyle = baseColor + (contactAlpha * (1 - signalStrength * 0.3)) + ")"; 
+        
+        // Contact size varies slightly with signal strength
+        const blipSize = inSweep ? 4 : Math.max(2, 3 - signalStrength);
         
         ctx.beginPath();  
-        ctx.arc(contact.x, contact.y, inSweep ? 4 : 3, 0, Math.PI * 2);  
+        ctx.arc(contact.x, contact.y, blipSize, 0, Math.PI * 2);  
         ctx.fill();
 
         // Label (distance and bearing) — only show when under sweep or friendly  
         if (inSweep || i === 0) {  
-          ctx.fillStyle = "#8f8";  
+          ctx.fillStyle = `rgba(143, 255, 136, ${contactAlpha})`;  
           ctx.font = "10px monospace";  
           const rangeNm = Math.round(dist / 5);  
           const bearingDeg = Math.round(angleFromCenter * (180/Math.PI));  
@@ -314,7 +355,10 @@
         }
 
         ctx.shadowBlur = 0;  
-      });  
+      });
+      
+      // Remove contacts that have faded out completely
+      contacts = contacts.filter(c => c.undetectedFrames <= 15);
     }  
 
     // Draw radar sweep — single wedge with gradient and sharp leading edge  
@@ -407,6 +451,34 @@
           ctx.font = "bold 14px monospace";  
           ctx.fillText("PING!", wave.x - 18, wave.y + 4);  
         }  
+      }
+
+      // Draw echo rings from contact detections  
+      for (let i = echoRings.length - 1; i >= 0; i--) {  
+        const ring = echoRings[i];
+        
+        // Expand and fade
+        ring.radius += 8;
+        ring.opacity -= 0.05;
+
+        if (ring.opacity <= 0 || ring.radius > ring.maxRadius) {
+          echoRings.splice(i, 1);
+          continue;
+        }
+
+        ctx.beginPath();
+        ctx.arc(ring.x, ring.y, ring.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(0, 255, 255, ${ring.opacity})`;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Add echo indicator text
+        if (Math.floor(Date.now() / 50) % 4 === 0) {
+          ctx.fillStyle = `rgba(255, 255, 255, ${ring.opacity})`;
+          ctx.font = "10px monospace";
+          const rangeNm = Math.round(ring.radius / 8); // Approximate scale
+          ctx.fillText(`ECHO ${rangeNm}nm`, ring.x - 15, ring.y + 3);
+        }
       }
 
       // Draw center hub  
