@@ -99,13 +99,13 @@
         
         // State variables
         let contacts = [
-            { x: 400, y: 150, speed: 8, angle: Math.PI / 4 }, // Friendly sub (green)
-            { x: 600, y: 400, speed: 6, angle: -Math.PI / 3 }  // Enemy contact (red)
+            { x: 400, y: 150, speed: 1.5, angle: Math.PI / 4 }, // Friendly sub (green) — slower speed
+            { x: 600, y: 400, speed: 1.2, angle: -Math.PI / 3 }  // Enemy contact (red) — slower speed
         ];
         
         let trailData = [];
         const MAX_TRAIL_FRAMES = 50;
-        const SWEEP_SPEED = Math.PI / 180; // Radians per frame (~2 deg/frame)
+        const SWEEP_SPEED = Math.PI / 240; // Radians per frame (~1.5 deg/frame) — slower rotation
         let sweepAngle = 0;
         let lastTime = performance.now();
         let frameCount = 0;
@@ -180,7 +180,6 @@
             // Subtle seabed noise (sparse dots)
             const noiseSize = Math.floor(canvas.width * canvas.height / 500);
             for (let i = 0; i < noiseSize; i++) {
-                // Use seeded randomness would be better, but this works for demo
                 if (i % 3 === 0) { // Only draw ~1/3 of potential dots to keep it sparse
                     ctx.fillStyle = `rgba(0, 30, 60, ${Math.random() * 0.1})`;
                     const x = Math.random() * canvas.width;
@@ -212,13 +211,13 @@
             ctx.stroke();
         }
 
-        // Draw contacts (blips) with authentic radar behavior
+        // Draw contacts (blips) with authentic radar behavior — FIXED angular wrap-around
         function drawContacts() {
             const centerX = canvas.width / 2;
             const centerY = canvas.height / 2;
 
             contacts.forEach((contact, i) => {
-                // Move contact
+                // Move contact (slower speed now)
                 contact.x += Math.cos(contact.angle) * contact.speed;
                 contact.y += Math.sin(contact.angle) * contact.speed;
                 
@@ -237,18 +236,17 @@
                 let angleFromCenter = Math.atan2(dy, dx);
                 if (angleFromCenter < 0) angleFromCenter += Math.PI * 2;
 
-                // Determine if contact is within current sweep arc
+                // Determine if contact is within current sweep arc — FIXED wrap-around logic
                 const sweepArcSize = Math.PI / 6; // 30° wedge
                 let inSweep = false;
                 
-                // Handle wrap-around case for sweep angle
-                let diff1 = Math.abs(angleFromCenter - sweepAngle);
-                let diff2 = Math.abs(angleFromCenter - (sweepAngle + Math.PI * 2));
-                let minDiff = Math.min(diff1, diff2);
+                // Handle angular wrap-around at 0°/360° boundary
+                const angleDiff1 = Math.abs(angleFromCenter - sweepAngle);
+                const angleDiff2 = Math.abs(angleFromCenter - (sweepAngle + Math.PI * 2));
+                const angleDiff3 = Math.abs((angleFromCenter + Math.PI * 2) - sweepAngle);
+                const minDiff = Math.min(angleDiff1, angleDiff2, angleDiff3);
                 
-                if (minDiff < sweepArcSize / 2) {
-                    inSweep = true;
-                }
+                inSweep = minDiff < sweepArcSize / 2;
 
                 // Draw contact
                 ctx.shadowBlur = inSweep ? 8 : 0;
@@ -276,7 +274,7 @@
             });
         }
 
-        // Draw radar sweep with authentic phosphor glow
+        // Draw radar sweep with authentic phosphor glow — FIXED for complete ring
         function drawRadarSweep() {
             const centerX = canvas.width / 2;
             const centerY = canvas.height / 2;
@@ -288,7 +286,7 @@
                 trailData.shift();
             }
 
-            // Draw each frame in the trail
+            // Draw each frame in the trail — now handles full 360° wrap correctly
             for (let i = 0; i < trailData.length; i++) {
                 const t = trailData[i];
                 const age = (Date.now() - t) / 500; // Normalize to ~500ms decay
@@ -297,18 +295,27 @@
 
                 // Calculate sweep angle for this frame
                 const frameOffset = (i / trailData.length);
-                const currentSweepAngle = sweepAngle + (frameOffset * Math.PI / 4);
+                let currentSweepAngle = sweepAngle + (frameOffset * Math.PI / 4);
 
                 ctx.beginPath();
                 ctx.moveTo(centerX, centerY);
 
-                ctx.arc(
-                    centerX,
-                    centerY,
-                    radius,
-                    currentSweepAngle - Math.PI/6, // Start angle
-                    currentSweepAngle             // End angle
-                );
+                // Handle sweep arc that might cross the 0° boundary
+                const startAngle = currentSweepAngle - Math.PI/6;
+                const endAngle = currentSweepAngle;
+
+                if (startAngle < 0) {
+                    // Arc crosses top — draw in two parts
+                    ctx.arc(centerX, centerY, radius, startAngle + Math.PI * 2, Math.PI * 2);
+                    ctx.arc(centerX, centerY, radius, 0, endAngle);
+                } else if (endAngle > Math.PI * 2) {
+                    // Arc crosses bottom — draw in two parts
+                    ctx.arc(centerX, centerY, radius, startAngle, Math.PI * 2);
+                    ctx.arc(centerX, centerY, radius, 0, endAngle - Math.PI * 2);
+                } else {
+                    // Normal arc (no wrap)
+                    ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+                }
 
                 ctx.shadowBlur = 15;
                 ctx.shadowColor = "#0f0";
@@ -318,7 +325,7 @@
                 ctx.stroke();
             }
 
-            // Update sweep angle for next frame
+            // Update sweep angle for next frame — slower rotation
             sweepAngle += SWEEP_SPEED;
             if (sweepAngle >= Math.PI * 2) {
                 sweepAngle -= Math.PI * 2;
@@ -421,7 +428,7 @@
             contacts.push({
                 x, 
                 y, 
-                speed: Math.random() * 10 + 4,
+                speed: Math.random() * 2 + 1.5, // Slower new contacts too
                 angle
             });
         });
