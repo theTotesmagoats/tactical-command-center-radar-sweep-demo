@@ -344,7 +344,7 @@ function drawContacts() {
     ctx.shadowBlur = 0;  
   });      
   
-  // Draw ghost blips (delayed echoes) — INCREASED VISIBILITY!
+  // Draw ghost blips (delayed echoes) — CLEANED UP TEXT!
   for (let i = ghostBlips.length - 1; i >= 0; i--) {    
     const ghost = ghostBlips[i];        
     ghost.age++;    
@@ -369,13 +369,8 @@ function drawContacts() {
     ctx.lineTo(ghost.ghostX, ghost.ghostY);
     ctx.stroke();
     
-    // Draw ghost echo text — MORE PROMINENT!
-    if (Math.floor(Date.now() / 30) % 5 === 0) {
-      ctx.fillStyle = `rgba(255, 255, 255, ${ghost.opacity})`;
-      ctx.font = "bold 11px monospace"; // Was 10px
-      const delayFrames = ghost.age;
-      ctx.fillText(`GHOST ${delayFrames}f`, ghost.x - 15, ghost.y + 5);
-    }
+    // REMOVED: Ghost text labels to prevent visual "glitching"
+    // Ghost echoes are visual aids — no need for detailed labels that clutter the display
   }
 }  
 
