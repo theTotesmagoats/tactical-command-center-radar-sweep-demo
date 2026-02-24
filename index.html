@@ -71,6 +71,25 @@
       background: #0f0;  
       color: #000;  
     }  
+
+    .sonar-controls {  
+      display: flex;  
+      gap: 15px;  
+      align-items: center;  
+      margin-top: 10px;  
+    }
+
+    .range-slider {  
+      display: flex;  
+      flex-direction: column;  
+      min-width: 200px;  
+    }
+
+    .range-display {  
+      font-size: 12px;  
+      color: #8f8;  
+      text-align: center;  
+    }
   </style>
 </head>  
 <body>  
@@ -87,7 +106,16 @@
 
   <div class="status-bar">  
     FPS: <span id="fpsDisplay">60</span> | CONTACTS: <span id="contactCount">2</span> | DEPTH: 300m  
-  </div>  
+  </div>
+
+  <div class="sonar-controls">
+    <div class="range-slider">
+      <label for="rangeFilter">Range Filter (nm)</label>
+      <input type="range" id="rangeFilter" min="10" max="60" value="50" step="5">
+      <div class="range-display"><span id="minRangeDisplay">50</span> - <span id="maxRangeDisplay">300</span> nm</div>
+    </div>
+    <button id="toggleGhostBtn">GHOST ECHO: ON</button>
+  </div>
 
   <script>  
     // Setup canvas and context  
@@ -108,6 +136,13 @@
     let frameCount = 0;  
     let fps = 60;  
 
+    // Range filter settings (in nm, scale: 5px = 1nm)
+    let minRangeNm = 10;
+    let maxRangeNm = 300;
+
+    // Ghost echo toggle
+    let ghostEchoesEnabled = true;
+
     // Audio context for sonar  
     let audioCtx = null;  
 
@@ -122,14 +157,23 @@
     }  
 
     // Play realistic sonar ping with optional bearing for spatial panning  
-    function playSonarPing(bearingAngle) {  
+    function playSonarPing(bearingAngle, contactSpeed) {  
       initAudio();  
       
       const osc = audioCtx.createOscillator();  
       const gainNode = audioCtx.createGain();  
       
       osc.type = 'sine';  
-      osc.frequency.setValueAtTime(200, audioCtx.currentTime);  
+      
+      // Doppler shift: pitch changes based on relative speed
+      let baseFreq = 200;
+      if (typeof contactSpeed !== 'undefined' && contactSpeed > 0) {
+        // Higher pitch if moving toward sweep direction, lower if away
+        const dopplerFactor = 1 + (contactSpeed * 0.05); // ±5% shift max
+        baseFreq *= dopplerFactor;
+      }
+      
+      osc.frequency.setValueAtTime(baseFreq, audioCtx.currentTime);
       osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.3);  
       
       // Create spatial effect (stereo panning)  
@@ -160,6 +204,7 @@
 
     let sonarWaves = []; // Old-style concentric rings  
     let echoRings = [];  // New: directional echo rings from contacts  
+    let ghostBlips = []; // Ghost echoes at previous positions
 
     function createSonarWaveform() {  
       sonarWaves.push({  
@@ -181,6 +226,29 @@
         radius: 5,  
         opacity: 0.6,
         maxRadius: canvas.width / 1.2
+      });
+    }
+
+    // Add ghost blip for contact that just passed under sweep
+    function addGhostBlip(contact, angleFromCenter, dist) {
+      if (!ghostEchoesEnabled) return;
+
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+
+      // Calculate previous position based on current movement vector
+      const ghostDist = Math.max(50, dist - (contact.speed * 3)); // Slightly closer than actual
+      const ghostX = centerX + Math.cos(angleFromCenter) * ghostDist;
+      const ghostY = centerY + Math.sin(angleFromCenter) * ghostDist;
+
+      ghostBlips.push({
+        x: contact.x,
+        y: contact.y,
+        ghostX: ghostX,
+        ghostY: ghostY,
+        opacity: 0.6,
+        age: 0,
+        maxAge: 15 // Fade out after ~15 frames
       });
     }
 
@@ -272,11 +340,17 @@
           ctx.fill();  
         }
 
-        // Calculate distance from center  
+        // Calculate distance from center (in pixels)
         const dx = contact.x - centerX;  
         const dy = contact.y - centerY;  
-        const dist = Math.sqrt(dx*dx + dy*dy);  
-        
+        const distPx = Math.sqrt(dx*dx + dy*dy);
+        const distNm = distPx / 5; // Scale: 5px = 1nm
+
+        // Range filter check
+        if (distNm < minRangeNm || distNm > maxRangeNm) {
+          return; // Skip contacts outside range filter
+        }
+
         // Calculate bearing (angle from center)  
         let angleFromCenter = Math.atan2(dy, dx);  
         if (angleFromCenter < 0) angleFromCenter += Math.PI * 2;
@@ -300,7 +374,11 @@
         if (!contact.lastInSweep && inSweep) {  
           // Convert radar bearing to pan value for spatial audio  
           const bearingFromNorth = (Math.PI / 2 - angleFromCenter + Math.PI * 2) % (Math.PI * 2);
-          playSonarPing(bearingFromNorth);
+          
+          // Add ghost blip when contact is first detected
+          addGhostBlip(contact, angleFromCenter, distPx);
+          
+          playSonarPing(bearingFromNorth, contact.speed);
         }
 
         // Update lastInSweep state  
@@ -346,16 +424,49 @@
         if (inSweep || i === 0) {  
           ctx.fillStyle = `rgba(143, 255, 136, ${contactAlpha})`;  
           ctx.font = "10px monospace";  
-          const rangeNm = Math.round(dist / 5);  
+          const rangeNm = Math.round(distPx / 5);  
           const bearingDeg = Math.round(angleFromCenter * (180/Math.PI));  
           
-          ctx.fillText(`BLIP-${i+1} R:${rangeNm} B:${bearingDeg}`, contact.x + 10, contact.y - 8);  
+          ctx.fillText(`BLIP-${i+1} R:${rangeNm}nm B:${bearingDeg}`, contact.x + 10, contact.y - 8);  
         }
 
         ctx.shadowBlur = 0;  
       });
       
-      // REMOVED: contacts.filter() that was removing objects too quickly
+      // Draw ghost blips (delayed echoes)
+      for (let i = ghostBlips.length - 1; i >= 0; i--) {
+        const ghost = ghostBlips[i];
+        
+        ghost.age++;
+        ghost.opacity -= 0.04;
+        
+        if (ghost.opacity <= 0 || ghost.age > ghost.maxAge) {
+          ghostBlips.splice(i, 1);
+          continue;
+        }
+        
+        // Draw ghost blip at previous position
+        ctx.fillStyle = `rgba(255, 255, 255, ${ghost.opacity * 0.4})`;
+        ctx.beginPath();
+        ctx.arc(ghost.x, ghost.y, 3, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Draw line connecting to actual position
+        ctx.strokeStyle = `rgba(255, 255, 255, ${ghost.opacity * 0.2})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(ghost.x, ghost.y);
+        ctx.lineTo(ghost.ghostX, ghost.ghostY);
+        ctx.stroke();
+        
+        // Draw ghost echo text
+        if (Math.floor(Date.now() / 30) % 5 === 0) {
+          ctx.fillStyle = `rgba(255, 255, 255, ${ghost.opacity * 0.6})`;
+          ctx.font = "10px monospace";
+          const delayFrames = ghost.age;
+          ctx.fillText(`GHOST ${delayFrames}f`, ghost.x - 12, ghost.y + 3);
+        }
+      }
     }  
 
     // Draw radar sweep — single wedge with gradient and sharp leading edge  
@@ -582,7 +693,32 @@
           document.body.removeChild(flash);  
         }, 300);  
       }, 50);  
-    });  
+    });
+
+    // Range filter slider handler
+    const rangeSlider = document.getElementById('rangeFilter');
+    const minRangeDisplay = document.getElementById('minRangeDisplay');
+    const maxRangeDisplay = document.getElementById('maxRangeDisplay');
+
+    rangeSlider.addEventListener('input', () => {
+      const value = parseInt(rangeSlider.value);
+      minRangeNm = value;
+      maxRangeNm = value * 6; // Max range is 6x the min (50-300nm at default)
+      
+      minRangeDisplay.textContent = minRangeNm;
+      maxRangeDisplay.textContent = maxRangeNm;
+    });
+
+    // Ghost echo toggle button
+    const ghostBtn = document.getElementById('toggleGhostBtn');
+    
+    ghostBtn.addEventListener('click', () => {
+      ghostEchoesEnabled = !ghostEchoesEnabled;
+      ghostBtn.textContent = `GHOST ECHO: ${ghostEchoesEnabled ? 'ON' : 'OFF'}`;
+      if (!ghostEchoesEnabled) {
+        ghostBlips = []; // Clear existing ghosts
+      }
+    });
 
     // Start the animation  
     animate();  
