@@ -14,9 +14,9 @@ button:active {  transform: scale(0.97);  background: #0f0;  color: #000;  }
 
 .sonar-controls {  display: flex;  gap: 15px;  align-items: center;  margin-top: 10px;  }
 
-.range-slider {  display: flex;  flex-direction: column;  min-width: 200px;  }
+.range-slider, .depth-slider {  display: flex;  flex-direction: column;  min-width: 200px;  }
 
-.range-display {  font-size: 12px;  color: #8f8;  text-align: center;  }
+.range-display, .depth-display {  font-size: 12px;  color: #8f8;  text-align: center;  }
 </style>
 </head>  <body>  <h1>TACTICAL RADAR SWEEP (60 FPS) — PHOSPHOR GLOW ENGINE</h1>
 
@@ -35,6 +35,14 @@ button:active {  transform: scale(0.97);  background: #0f0;  color: #000;  }
   <button id="toggleGhostBtn">GHOST ECHO: ON</button>
 </div>
 
+<div class="sonar-controls">
+  <div class="depth-slider">
+    <label for="depthFilter">Depth Filter (m)</label>
+    <input type="range" id="depthFilter" min="0" max="500" value="300" step="10">
+    <div class="depth-display"><span id="minDepthDisplay">0</span> - <span id="maxDepthDisplay">300</span> m</div>
+  </div>
+</div>
+
 <script>  
 // Setup canvas and context  
 const canvas = document.getElementById('radarCanvas');  
@@ -42,8 +50,8 @@ const ctx = canvas.getContext('2d', { alpha: false }); // Optimize for no transp
   
 // State variables  
 let contacts = [  
-  { x: 400, y: 150, speed: 0.75, angle: Math.PI / 4 }, // Friendly sub (green) — slower speed  
-  { x: 600, y: 400, speed: 0.6, angle: -Math.PI / 3 }  // Enemy contact (red) — slower speed  
+  { x: 400, y: 150, speed: 0.75, angle: Math.PI / 4, depth: 50 }, // Friendly sub (green) — shallow depth  
+  { x: 600, y: 400, speed: 0.6, angle: -Math.PI / 3, depth: 200 }  // Enemy contact (red) — deep depth  
 ];      
   
 let blipTrails = []; // Store recent positions for trails  
@@ -57,6 +65,10 @@ let fps = 60;
 // Range filter settings (in nm, scale: 5px = 1nm)
 let minRangeNm = 10;
 let maxRangeNm = 300;
+
+// Depth filter settings
+let minDepthM = 0;
+let maxDepthM = 300;
 
 // Ghost echo toggle
 let ghostEchoesEnabled = true;
@@ -205,6 +217,26 @@ function drawBackground() {
   }  
   ctx.stroke();
 
+  // Depth rings (depth filter visualization)
+  const maxRadius = Math.hypot(canvas.width/2, canvas.height/2);
+  const depthScale = maxRadius / 500; // 500m maps to max radius
+  
+  for (let depth = 100; depth <= 400; depth += 100) {
+    if (depth >= minDepthM && depth <= maxDepthM) {
+      const r = depth * depthScale;
+      ctx.strokeStyle = `rgba(0, 255, 255, ${0.1 + (depth/1000)})`;
+      ctx.beginPath();
+      ctx.arc(canvas.width/2, canvas.height/2, r, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Depth label
+      ctx.fillStyle = "rgba(0, 255, 255, 0.3)";
+      ctx.font = "10px monospace";
+      ctx.textAlign = "center";
+      ctx.fillText(`${depth}m`, canvas.width/2 + r - 15, canvas.height/2);
+    }
+  }
+
   // Crosshair at center  
   ctx.strokeStyle = "rgba(0, 255, 64, 0.3)";  
   ctx.beginPath();  
@@ -226,6 +258,8 @@ function drawContacts() {
     // Initialize properties if not present (FIXED: check both properties independently)    
     contact.lastInSweep = (typeof contact.lastInSweep === 'undefined') ? false : contact.lastInSweep;    
     contact.undetectedFrames = (typeof contact.undetectedFrames === 'undefined') ? 0 : contact.undetectedFrames;
+    // Initialize depth if not present
+    contact.depth = (typeof contact.depth === 'undefined') ? 150 : contact.depth;
 
     // Record current position for trail    
     if (!contact.trail) contact.trail = [];    
@@ -261,6 +295,12 @@ function drawContacts() {
     // Range filter check    
     if (distNm < minRangeNm || distNm > maxRangeNm) {      
       return; // Skip contacts outside range filter    
+    }
+
+    // Depth filter check
+    const contactDepth = contact.depth;
+    if (contactDepth < minDepthM || contactDepth > maxDepthM) {
+      return; // Skip contacts outside depth filter
     }
 
     // Calculate bearing (angle from center)    
@@ -338,7 +378,9 @@ function drawContacts() {
       const rangeNm = Math.round(distPx / 5);      
       const bearingDeg = Math.round(angleFromCenter * (180/Math.PI));          
       
-      ctx.fillText(`BLIP-${i+1} R:${rangeNm}nm B:${bearingDeg}`, contact.x + 10, contact.y - 8);    
+      // Add depth info to label
+      const depthInfo = contactDepth > 0 ? ` D:${contactDepth}m` : '';
+      ctx.fillText(`BLIP-${i+1} R:${rangeNm}nm B:${bearingDeg}${depthInfo}`, contact.x + 10, contact.y - 8);    
     }
 
     ctx.shadowBlur = 0;  
@@ -562,13 +604,16 @@ canvas.addEventListener('click', (e) => {
   const x = e.clientX - rect.left;  
   const y = e.clientY - rect.top;
 
-  // Create a random contact  
-  const angle = Math.random() * Math.PI * 2;  
+  // Create a random contact with random depth
+  const angle = Math.random() * Math.PI * 2;
+  const depth = Math.floor(Math.random() * 400) + 50; // 50-450m
+  
   contacts.push({    
     x,    
     y,    
-    speed: Math.random() + 0.75, // Halved range: 0.75 to 1.75 px/frame    
-    angle  
+    speed: Math.random() + 0.75, // Halved range: 0.75 to 1.75 px/frame
+    angle,
+    depth  
   });
 });
 
@@ -607,6 +652,20 @@ rangeSlider.addEventListener('input', () => {
   
   minRangeDisplay.textContent = minRangeNm;
   maxRangeDisplay.textContent = maxRangeNm;
+});
+
+// Depth filter slider handler
+const depthSlider = document.getElementById('depthFilter');
+const minDepthDisplay = document.getElementById('minDepthDisplay');
+const maxDepthDisplay = document.getElementById('maxDepthDisplay');
+
+depthSlider.addEventListener('input', () => {
+  const value = parseInt(depthSlider.value);
+  minDepthM = 0;
+  maxDepthM = value; // Filter shows contacts shallower than this depth
+  
+  minDepthDisplay.textContent = minDepthM;
+  maxDepthDisplay.textContent = maxDepthM;
 });
 
 // Ghost echo toggle button — ENHANCED VISUAL FEEDBACK!
