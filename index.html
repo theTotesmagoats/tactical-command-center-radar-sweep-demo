@@ -101,7 +101,7 @@
     ];  
       
     let trailData = [];  
-    const MAX_TRAIL_FRAMES = 50;  
+    const MAX_TRAIL_FRAMES = 12; // Sharper, cleaner sweep trail (was 50)  
     const SWEEP_SPEED = Math.PI / 480; // Radians per frame (~0.75 deg/frame) — half rotation speed  
     let sweepAngle = 0;  
     let lastTime = performance.now();  
@@ -271,7 +271,7 @@
       });  
     }  
 
-    // Draw radar sweep with authentic phosphor glow — FIXED for complete ring  
+    // Draw radar sweep with authentic phosphor glow — FIXED for clean arc  
     function drawRadarSweep() {  
       const centerX = canvas.width / 2;  
       const centerY = canvas.height / 2;  
@@ -283,11 +283,11 @@
         trailData.shift();  
       }  
 
-      // Draw each frame in the trail — now handles full 360° wrap correctly  
+      // Draw each frame in the trail — now with cubic fade for clean arc  
       for (let i = 0; i < trailData.length; i++) {  
         const t = trailData[i];  
         const age = (Date.now() - t) / 500; // Normalize to ~500ms decay  
-        
+
         if (age > 1) continue;
 
         // Calculate sweep angle for this frame  
@@ -314,9 +314,12 @@
           ctx.arc(centerX, centerY, radius, startAngle, endAngle);  
         }
 
-        ctx.shadowBlur = 15;  
+        // Cubic fade: sharp drop-off, no "blinds" effect  
+        const opacity = Math.pow(1 - age, 3) * 0.8;  
+        
+        ctx.shadowBlur = 8; // Reduced from 15 to eliminate corner glow bleed  
         ctx.shadowColor = "#0f0";  
-        ctx.strokeStyle = `rgba(0, 255, 0, ${0.9 * (1 - age)})`;  
+        ctx.strokeStyle = `rgba(0, 255, 0, ${opacity})`;  
         ctx.lineWidth = 3;
 
         ctx.stroke();  
