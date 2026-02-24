@@ -100,8 +100,7 @@
       { x: 600, y: 400, speed: 0.6, angle: -Math.PI / 3 }  // Enemy contact (red) — slower speed  
     ];  
       
-    let trailData = [];  
-    const MAX_TRAIL_FRAMES = 8; // Shorter trail with radial gradient sectors (was 12)  
+    let trailData = []; // no longer used  
     const SWEEP_SPEED = Math.PI / 320; // Rotation speed (~5.3s/cycle)  
     let sweepAngle = 0;  
     let lastTime = performance.now();  
@@ -271,70 +270,50 @@
       });  
     }  
 
-    // Draw radar sweep — smooth radial gradient pie slice with phosphor glow  
+    // Draw radar sweep — single wedge with gradient (no stacked slices)  
     function drawRadarSweep() {  
       const centerX = canvas.width / 2;  
       const centerY = canvas.height / 2;  
       const radius = Math.hypot(centerX, centerY); // Half-diagonal → reaches all corners  
 
-      // Store current sweep position for trail effect  
-      trailData.push(Date.now());  
-      if (trailData.length > MAX_TRAIL_FRAMES) {  
-        trailData.shift();  
-      }  
-
-      // Enable additive blending for phosphor glow  
       ctx.globalCompositeOperation = 'lighter';
 
-      // Draw filled sectors with radial gradient for smooth fade  
-      for (let i = 0; i < trailData.length; i++) {  
-        const t = trailData[i];  
-        const age = (Date.now() - t) / 500; // Normalize to ~500ms decay  
+      // Single sweep wedge with gradient — no more stacked slices  
+      const trailLength = Math.PI / 3; // 60° trail  
+      const startAngle = sweepAngle - trailLength;  
+      const endAngle = sweepAngle;
 
-        if (age > 1) continue;
+      ctx.beginPath();  
+      ctx.moveTo(centerX, centerY);  
+      ctx.arc(centerX, centerY, radius, startAngle, endAngle);  
+      ctx.closePath();
 
-        // Calculate sweep angle for this frame  
-        const frameOffset = (i / trailData.length);  
-        let currentSweepAngle = sweepAngle + (frameOffset * Math.PI / 4);
+      // Radial gradient for glow falloff from center outward  
+      const grad = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
+      grad.addColorStop(0, 'rgba(0, 255, 0, 0)');     // transparent at center  
+      grad.addColorStop(0.3, 'rgba(0, 255, 0, 0.15)'); // mid-fade  
+      grad.addColorStop(1, 'rgba(0, 255, 0, 0.25)');   // faint edge  
 
-        ctx.beginPath();  
-        ctx.moveTo(centerX, centerY);
+      ctx.fillStyle = grad;  
+      ctx.fill();
 
-        // Handle sweep arc that might cross the 0° boundary  
-        const startAngle = currentSweepAngle - Math.PI/6;  
-        const endAngle = currentSweepAngle;
+      // Bright leading edge line with shadow for phosphor glow  
+      ctx.beginPath();  
+      ctx.moveTo(centerX, centerY);  
+      ctx.lineTo(
+        centerX + Math.cos(sweepAngle) * radius,
+        centerY + Math.sin(sweepAngle) * radius
+      );
+      ctx.strokeStyle = 'rgba(0, 255, 100, 0.9)';
+      ctx.lineWidth = 2;
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = '#0f0';
+      ctx.stroke();
+      ctx.shadowBlur = 0;
 
-        if (startAngle < 0) {  
-          // Arc crosses top — draw in two parts  
-          ctx.arc(centerX, centerY, radius, startAngle + Math.PI * 2, Math.PI * 2);  
-          ctx.arc(centerX, centerY, radius, 0, endAngle);  
-        } else if (endAngle > Math.PI * 2) {  
-          // Arc crosses bottom — draw in two parts  
-          ctx.arc(centerX, centerY, radius, startAngle, Math.PI * 2);  
-          ctx.arc(centerX, centerY, radius, 0, endAngle - Math.PI * 2);  
-        } else {  
-          // Normal arc (no wrap)  
-          ctx.arc(centerX, centerY, radius, startAngle, endAngle);  
-        }
-
-        ctx.closePath(); // Ensure sector is closed for filling  
-
-        // Create radial gradient: bright center → dim edge  
-        const grad = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
-        // Fade based on age to simulate phosphor decay  
-        const baseOpacity = Math.pow(1 - age, 2);  
-        grad.addColorStop(0, `rgba(0, 255, 0, ${baseOpacity})`);     // center: full opacity  
-        grad.addColorStop(0.7, `rgba(0, 255, 0, ${baseOpacity * 0.6})`); // mid-fade  
-        grad.addColorStop(1, `rgba(0, 255, 0, ${baseOpacity * 0.2})`);   // edge: faint  
-
-        ctx.fillStyle = grad;  
-        ctx.fill();  
-      }  
-
-      // Reset composite operation for contacts and background  
       ctx.globalCompositeOperation = 'source-over';
 
-      // Update sweep angle for next frame — faster rotation  
+      // Update sweep angle for next frame  
       sweepAngle += SWEEP_SPEED;  
       if (sweepAngle >= Math.PI * 2) {  
         sweepAngle -= Math.PI * 2;  
