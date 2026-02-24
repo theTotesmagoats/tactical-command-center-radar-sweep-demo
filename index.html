@@ -101,7 +101,7 @@
     ];  
       
     let trailData = [];  
-    const MAX_TRAIL_FRAMES = 12; // Trail length for filled sectors  
+    const MAX_TRAIL_FRAMES = 8; // Shorter trail with radial gradient sectors (was 12)  
     const SWEEP_SPEED = Math.PI / 320; // Rotation speed (~5.3s/cycle)  
     let sweepAngle = 0;  
     let lastTime = performance.now();  
@@ -271,7 +271,7 @@
       });  
     }  
 
-    // Draw radar sweep — solid green pie slice with phosphor glow  
+    // Draw radar sweep — smooth radial gradient pie slice with phosphor glow  
     function drawRadarSweep() {  
       const centerX = canvas.width / 2;  
       const centerY = canvas.height / 2;  
@@ -286,7 +286,7 @@
       // Enable additive blending for phosphor glow  
       ctx.globalCompositeOperation = 'lighter';
 
-      // Draw filled sectors with fading opacity (low base alpha to preserve contact visibility)  
+      // Draw filled sectors with radial gradient for smooth fade  
       for (let i = 0; i < trailData.length; i++) {  
         const t = trailData[i];  
         const age = (Date.now() - t) / 500; // Normalize to ~500ms decay  
@@ -319,10 +319,15 @@
 
         ctx.closePath(); // Ensure sector is closed for filling  
 
-        // Quadratic decay: low base opacity preserves contact visibility  
-        const opacity = Math.pow(1 - age, 2) * 0.2;  
-        
-        ctx.fillStyle = `rgba(0, 255, 0, ${opacity})`;  
+        // Create radial gradient: bright center → dim edge  
+        const grad = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
+        // Fade based on age to simulate phosphor decay  
+        const baseOpacity = Math.pow(1 - age, 2);  
+        grad.addColorStop(0, `rgba(0, 255, 0, ${baseOpacity})`);     // center: full opacity  
+        grad.addColorStop(0.7, `rgba(0, 255, 0, ${baseOpacity * 0.6})`); // mid-fade  
+        grad.addColorStop(1, `rgba(0, 255, 0, ${baseOpacity * 0.2})`);   // edge: faint  
+
+        ctx.fillStyle = grad;  
         ctx.fill();  
       }  
 
