@@ -100,7 +100,8 @@
       { x: 600, y: 400, speed: 0.6, angle: -Math.PI / 3 }  // Enemy contact (red) — slower speed  
     ];  
       
-    let trailData = []; // no longer used  
+    let blipTrails = []; // Store recent positions for trails  
+    const MAX_BLIP_TRAIL_LENGTH = 8; // Trail length in frames  
     const SWEEP_SPEED = Math.PI / 320; // Rotation speed (~5.3s/cycle)  
     let sweepAngle = 0;  
     let lastTime = performance.now();  
@@ -207,13 +208,18 @@
       ctx.stroke();  
     }  
 
-    // Draw contacts (blips) with authentic radar behavior — FIXED angular wrap-around  
+    // Draw contacts (blips) with trails and authentic radar behavior  
     function drawContacts() {  
       const centerX = canvas.width / 2;  
       const centerY = canvas.height / 2;
 
       contacts.forEach((contact, i) => {  
-        // Move contact (halved speed now)  
+        // Record current position for trail  
+        if (!contact.trail) contact.trail = [];  
+        contact.trail.push({ x: contact.x, y: contact.y });  
+        if (contact.trail.length > MAX_BLIP_TRAIL_LENGTH) contact.trail.shift();
+
+        // Move contact  
         contact.x += Math.cos(contact.angle) * contact.speed;  
         contact.y += Math.sin(contact.angle) * contact.speed;  
         
@@ -222,6 +228,17 @@
         if (contact.x > canvas.width) contact.x = 0;  
         if (contact.y < 0) contact.y = canvas.height;  
         if (contact.y > canvas.height) contact.y = 0;
+
+        // Draw trail  
+        for (let j = 0; j < contact.trail.length; j++) {  
+          const pos = contact.trail[j];  
+          const alpha = (j / contact.trail.length) * 0.4; // Fade from center to end  
+          
+          ctx.fillStyle = i === 0 ? `rgba(0,255,0,${alpha})` : `rgba(255,0,0,${alpha})`;  
+          ctx.beginPath();  
+          ctx.arc(pos.x, pos.y, 2, 0, Math.PI * 2);  
+          ctx.fill();  
+        }
 
         // Calculate distance from center  
         const dx = contact.x - centerX;  
@@ -232,11 +249,10 @@
         let angleFromCenter = Math.atan2(dy, dx);  
         if (angleFromCenter < 0) angleFromCenter += Math.PI * 2;
 
-        // Determine if contact is within current sweep arc — FIXED wrap-around logic  
+        // Determine if contact is within current sweep arc  
         const sweepArcSize = Math.PI / 6; // 30° wedge  
         let inSweep = false;
         
-        // Handle angular wrap-around at 0°/360° boundary  
         const angleDiff1 = Math.abs(angleFromCenter - sweepAngle);  
         const angleDiff2 = Math.abs(angleFromCenter - (sweepAngle + Math.PI * 2));  
         const angleDiff3 = Math.abs((angleFromCenter + Math.PI * 2) - sweepAngle);  
@@ -244,23 +260,22 @@
         
         inSweep = minDiff < sweepArcSize / 2;
 
-        // Draw contact  
+        // Draw contact blip  
         ctx.shadowBlur = inSweep ? 8 : 0;  
         ctx.shadowColor = i === 0 ? "#0f0" : "#f00";  
         
         const color = i === 0 ? "rgba(0,255,0,1)" : "rgba(255,0,0,0.7)";  
         ctx.fillStyle = color;  
         
-        // Draw contact blip  
         ctx.beginPath();  
         ctx.arc(contact.x, contact.y, inSweep ? 4 : 3, 0, Math.PI * 2);  
         ctx.fill();
 
         // Label (distance and bearing)  
-        if (inSweep || i === 0) { // Always show friendly label  
+        if (inSweep || i === 0) {  
           ctx.fillStyle = "#8f8";  
           ctx.font = "10px monospace";  
-          const rangeNm = Math.round(dist / 5); // Scale: 5px = 1nm  
+          const rangeNm = Math.round(dist / 5);  
           const bearingDeg = Math.round(angleFromCenter * (180/Math.PI));  
           
           ctx.fillText(`BLIP-${i+1} R:${rangeNm} B:${bearingDeg}`, contact.x + 10, contact.y - 8);  
@@ -270,7 +285,7 @@
       });  
     }  
 
-    // Draw radar sweep — single wedge with gradient (no stacked slices)  
+    // Draw radar sweep — single wedge with gradient and sharp leading edge  
     function drawRadarSweep() {  
       const centerX = canvas.width / 2;  
       const centerY = canvas.height / 2;  
@@ -278,8 +293,8 @@
 
       ctx.globalCompositeOperation = 'lighter';
 
-      // Single sweep wedge with gradient — no more stacked slices  
-      const trailLength = Math.PI / 3; // 60° trail  
+      // Single sweep wedge — shorter trail for sharper look  
+      const trailLength = Math.PI / 6; // 30° trail (was 60°)  
       const startAngle = sweepAngle - trailLength;  
       const endAngle = sweepAngle;
 
@@ -288,7 +303,7 @@
       ctx.arc(centerX, centerY, radius, startAngle, endAngle);  
       ctx.closePath();
 
-      // Radial gradient for glow falloff from center outward  
+      // Radial gradient for glow falloff  
       const grad = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
       grad.addColorStop(0, 'rgba(0, 255, 0, 0)');     // transparent at center  
       grad.addColorStop(0.3, 'rgba(0, 255, 0, 0.15)'); // mid-fade  
@@ -297,16 +312,16 @@
       ctx.fillStyle = grad;  
       ctx.fill();
 
-      // Bright leading edge line with shadow for phosphor glow  
+      // Bright leading edge line with optimized glow  
       ctx.beginPath();  
       ctx.moveTo(centerX, centerY);  
       ctx.lineTo(
         centerX + Math.cos(sweepAngle) * radius,
         centerY + Math.sin(sweepAngle) * radius
       );
-      ctx.strokeStyle = 'rgba(0, 255, 100, 0.9)';
+      ctx.strokeStyle = 'rgba(0, 255, 100, 1.0)'; // Brighter line (was 0.9)
       ctx.lineWidth = 2;
-      ctx.shadowBlur = 12;
+      ctx.shadowBlur = 8; // Reduced from 12 for tighter glow  
       ctx.shadowColor = '#0f0';
       ctx.stroke();
       ctx.shadowBlur = 0;
@@ -362,17 +377,26 @@
       ctx.lineTo(centerX, centerY + 30);  
       ctx.stroke();
 
-      // Range rings  
+      // Range rings with labels (nautical miles)  
       for (let r = 150; r < radius; r += 150) {  
+        const nm = Math.round(r / 5); // Scale: 5px = 1nm  
+        
         ctx.strokeStyle = "rgba(0, 255, 64, 0.15)";  
         ctx.beginPath();  
         ctx.arc(centerX, centerY, r, 0, Math.PI * 2);  
-        ctx.stroke();  
+        ctx.stroke();
+
+        // Label on the ring  
+        ctx.fillStyle = "#8f8";  
+        ctx.font = "bold 12px monospace";  
+        ctx.textAlign = "center";  
+        ctx.fillText(`${nm}nm`, centerX + r - 15, centerY - 3);  
       }
 
       // Direction indicator (N)  
       ctx.fillStyle = "#8f8";  
       ctx.font = "bold 14px monospace";  
+      ctx.textAlign = "left";  
       ctx.fillText("N", centerX + 5, centerY - radius + 15);  
     }  
 
@@ -409,7 +433,7 @@
       const x = e.clientX - rect.left;  
       const y = e.clientY - rect.top;
 
-      // Create a random contact — halved speed too  
+      // Create a random contact  
       const angle = Math.random() * Math.PI * 2;  
       contacts.push({  
         x,   
