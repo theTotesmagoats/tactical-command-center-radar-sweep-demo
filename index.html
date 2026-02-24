@@ -101,7 +101,7 @@
     ];  
       
     let trailData = [];  
-    const MAX_TRAIL_FRAMES = 10; // Shorter trail for filled sectors (was 20)  
+    const MAX_TRAIL_FRAMES = 12; // Trail length for filled sectors  
     const SWEEP_SPEED = Math.PI / 320; // Rotation speed (~5.3s/cycle)  
     let sweepAngle = 0;  
     let lastTime = performance.now();  
@@ -286,7 +286,7 @@
       // Enable additive blending for phosphor glow  
       ctx.globalCompositeOperation = 'lighter';
 
-      // Draw filled sectors with fading opacity  
+      // Draw filled sectors with fading opacity (low base alpha to preserve contact visibility)  
       for (let i = 0; i < trailData.length; i++) {  
         const t = trailData[i];  
         const age = (Date.now() - t) / 500; // Normalize to ~500ms decay  
@@ -319,8 +319,8 @@
 
         ctx.closePath(); // Ensure sector is closed for filling  
 
-        // Cubic-root decay: fills gaps smoothly without over-accumulation  
-        const opacity = Math.pow(1 - age, 1.5) * 0.6;  
+        // Quadratic decay: low base opacity preserves contact visibility  
+        const opacity = Math.pow(1 - age, 2) * 0.2;  
         
         ctx.fillStyle = `rgba(0, 255, 0, ${opacity})`;  
         ctx.fill();  
