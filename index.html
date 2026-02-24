@@ -242,11 +242,9 @@
       let sweepEndAngle = sweepAngle;
 
       contacts.forEach((contact, i) => {  
-        // Initialize lastInSweep if not present  
-        if (typeof contact.lastInSweep === 'undefined') {
-          contact.lastInSweep = false;
-          contact.undetectedFrames = 0; // For fade-out
-        }
+        // Initialize properties if not present (FIXED: check both properties independently)
+        contact.lastInSweep = (typeof contact.lastInSweep === 'undefined') ? false : contact.lastInSweep;
+        contact.undetectedFrames = (typeof contact.undetectedFrames === 'undefined') ? 0 : contact.undetectedFrames;
 
         // Record current position for trail  
         if (!contact.trail) contact.trail = [];  
@@ -357,8 +355,7 @@
         ctx.shadowBlur = 0;  
       });
       
-      // Remove contacts that have faded out completely
-      contacts = contacts.filter(c => c.undetectedFrames <= 15);
+      // REMOVED: contacts.filter() that was removing objects too quickly
     }  
 
     // Draw radar sweep — single wedge with gradient and sharp leading edge  
