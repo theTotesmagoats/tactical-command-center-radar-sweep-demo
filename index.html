@@ -101,8 +101,8 @@
     ];  
       
     let trailData = [];  
-    const MAX_TRAIL_FRAMES = 20; // Smoother sweep (was 12)  
-    const SWEEP_SPEED = Math.PI / 320; // Faster rotation (PI/480 → PI/320, ~50% faster)  
+    const MAX_TRAIL_FRAMES = 10; // Shorter trail for filled sectors (was 20)  
+    const SWEEP_SPEED = Math.PI / 320; // Rotation speed (~5.3s/cycle)  
     let sweepAngle = 0;  
     let lastTime = performance.now();  
     let frameCount = 0;  
@@ -271,7 +271,7 @@
       });  
     }  
 
-    // Draw radar sweep with authentic phosphor glow — FIXED for smooth arc  
+    // Draw radar sweep — solid green pie slice with phosphor glow  
     function drawRadarSweep() {  
       const centerX = canvas.width / 2;  
       const centerY = canvas.height / 2;  
@@ -283,7 +283,10 @@
         trailData.shift();  
       }  
 
-      // Draw each frame in the trail — quadratic fade for smoothness  
+      // Enable additive blending for phosphor glow  
+      ctx.globalCompositeOperation = 'lighter';
+
+      // Draw filled sectors with fading opacity  
       for (let i = 0; i < trailData.length; i++) {  
         const t = trailData[i];  
         const age = (Date.now() - t) / 500; // Normalize to ~500ms decay  
@@ -314,24 +317,23 @@
           ctx.arc(centerX, centerY, radius, startAngle, endAngle);  
         }
 
-        // Quadratic fade: fills gaps without long tails  
-        const opacity = Math.pow(1 - age, 2) * 0.9;  
-        
-        ctx.shadowBlur = 8; // Tight glow to avoid corner bleed  
-        ctx.shadowColor = "#0f0";  
-        ctx.strokeStyle = `rgba(0, 255, 0, ${opacity})`;  
-        ctx.lineWidth = 3;
+        ctx.closePath(); // Ensure sector is closed for filling  
 
-        ctx.stroke();  
+        // Cubic-root decay: fills gaps smoothly without over-accumulation  
+        const opacity = Math.pow(1 - age, 1.5) * 0.6;  
+        
+        ctx.fillStyle = `rgba(0, 255, 0, ${opacity})`;  
+        ctx.fill();  
       }  
+
+      // Reset composite operation for contacts and background  
+      ctx.globalCompositeOperation = 'source-over';
 
       // Update sweep angle for next frame — faster rotation  
       sweepAngle += SWEEP_SPEED;  
       if (sweepAngle >= Math.PI * 2) {  
         sweepAngle -= Math.PI * 2;  
       }
-
-      ctx.shadowBlur = 0; // Reset shadow
 
       // Draw sonar waveforms if active  
       for (let i = sonarWaves.length - 1; i >= 0; i--) {  
