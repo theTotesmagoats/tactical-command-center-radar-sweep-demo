@@ -652,79 +652,79 @@ function initAudio() {
   }
 }
 
-// Create a single echo ping with specified parameters
-function createEchoPing(baseFreq, volume, delay, bearingAngle, contactSpeed, dopplerFactor = 1.0) {
-  try {
-    if (!initAudio()) {
-      return;
-    }
-    
-    const osc = audioCtx.createOscillator();
-    const gainNode = audioCtx.createGain();
-    
-    osc.type = 'sine';
-    
-    // Apply Doppler shift based on relative speed
-    let adjustedFreq = baseFreq * dopplerFactor;
-    if (typeof contactSpeed !== 'undefined' && contactSpeed > 0) {
-      const dopplerShift = 1 + (contactSpeed * 0.03); // ±3% shift max
-      adjustedFreq *= dopplerShift;
-    }
-    
-    osc.frequency.setValueAtTime(adjustedFreq, audioCtx.currentTime);
-    gainNode.gain.setValueAtTime(volume, audioCtx.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
-    
-    // Stereo panning based on bearing
-    const panner = audioCtx.createStereoPanner();
-    panner.pan.value = Math.sin(bearingAngle);
-    
-    osc.connect(panner);
-    panner.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-    
-    osc.start();
-    osc.stop(audioCtx.currentTime + 0.1);
-  } catch (e) {
-    console.error('Error creating echo ping:', e);
-  }
-}
-
-// Play sonar ping with realistic echoes
+// Play sonar ping with realistic echoes using delay nodes
 function playSonarPing(bearingAngle, contactSpeed) {
   try {
     if (!initAudio()) {
       return;
     }
     
-    // Base frequency for primary ping
-    const baseFreq = 1200;
+    // Create one primary oscillator for the base ping
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    const panner = audioCtx.createStereoPanner();
     
-    // Primary direct path ping (immediate)
-    createEchoPing(baseFreq, 0.15, 0, bearingAngle, contactSpeed);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
     
-    // First-order echoes (shorter delay reflections) - ~60% of original volume
-    setTimeout(() => {
-      createEchoPing(baseFreq * 0.98, 0.09, 0, bearingAngle, contactSpeed, 0.98); // Slightly lower pitch
-    }, 250);
+    // Base volume envelope
+    gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
     
-    setTimeout(() => {
-      createEchoPing(baseFreq * 1.02, 0.08, 0, bearingAngle, contactSpeed, 1.02); // Slightly higher pitch
-    }, 450);
+    // Stereo panning based on bearing
+    panner.pan.value = Math.sin(bearingAngle);
     
-    // Second-order echoes (medium delay reflections) - ~35% of original volume  
-    setTimeout(() => {
-      createEchoPing(baseFreq * 0.96, 0.05, 0, bearingAngle, contactSpeed, 0.96);
-    }, 800);
+    osc.connect(gainNode);
+    gainNode.connect(panner);
+    panner.connect(audioCtx.destination);
     
-    setTimeout(() => {
-      createEchoPing(baseFreq * 1.04, 0.04, 0, bearingAngle, contactSpeed, 1.04);
-    }, 1200);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.35); // Longer duration to allow for echoes
     
-    // Third-order echoes (longer delay reflections) - ~15% of original volume
-    setTimeout(() => {
-      createEchoPing(baseFreq * 0.94, 0.03, 0, bearingAngle, contactSpeed, 0.94);
-    }, 1800);
+    // Create delay nodes for realistic sonar echoes
+    const delay1 = audioCtx.createDelay();
+    delay1.delayTime.value = 0.25; // First echo: 250ms delay
+    
+    const delay2 = audioCtx.createDelay();  
+    delay2.delayTime.value = 0.45; // Second echo: 450ms delay
+    
+    const delay3 = audioCtx.createDelay();
+    delay3.delayTime.value = 0.80; // Third echo: 800ms delay
+    
+    const delay4 = audioCtx.createDelay();
+    delay4.delayTime.value = 1.20; // Fourth echo: 1200ms delay
+    
+    // Connect delay nodes to the same destination as original
+    gainNode.connect(delay1);
+    gainNode.connect(delay2);
+    gainNode.connect(delay3);
+    gainNode.connect(delay4);
+    
+    // Set volumes for each echo path
+    const echoGain1 = audioCtx.createGain();
+    echoGain1.gain.value = 0.09; // 60% of original volume
+    
+    const echoGain2 = audioCtx.createGain();  
+    echoGain2.gain.value = 0.08; // 53% of original volume
+    
+    const echoGain3 = audioCtx.createGain();
+    echoGain3.gain.value = 0.05; // 33% of original volume
+    
+    const echoGain4 = audioCtx.createGain();
+    echoGain4.gain.value = 0.04; // 27% of original volume
+    
+    // Connect delays through gain nodes to panner
+    delay1.connect(echoGain1);
+    echoGain1.connect(panner);
+    
+    delay2.connect(echoGain2);
+    echoGain2.connect(panner);
+    
+    delay3.connect(echoGain3);
+    echoGain3.connect(panner);
+    
+    delay4.connect(echoGain4);
+    echoGain4.connect(panner);
     
     // Visual ping effects for echoes (echo rings)
     setTimeout(() => { createSonarEchoRing(sweepAngle, 0.7); }, 250);
