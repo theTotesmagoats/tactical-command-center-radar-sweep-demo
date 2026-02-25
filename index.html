@@ -197,6 +197,13 @@
     cursor: pointer;
     border-radius: 0;
   }
+  
+  /* High-DPI Support */
+  @media (min-resolution: 2dppx) {
+    canvas {
+      transform-origin: top left;
+    }
+  }
   </style>
 </head>
 <body>
@@ -243,7 +250,27 @@ let contacts = [
   { x: 600, y: 400, speed: 0.6, angle: -Math.PI / 3, depth: 200 }   // Enemy contact (red) — deep depth
 ];
 
-let blipTrails = []; // Store recent positions for trails
+// Pre-render seabed noise to offscreen canvas for performance
+const preRenderNoise = document.createElement('canvas');
+preRenderNoise.width = canvas.width;
+preRenderNoise.height = canvas.height;
+const preCtx = preRenderNoise.getContext('2d');
+
+// Fill with dark ocean color
+preCtx.fillStyle = '#0a1a2a';
+preCtx.fillRect(0, 0, preRenderNoise.width, preRenderNoise.height);
+
+// Add subtle seabed noise (sparse dots) - only once
+const noiseSize = Math.floor(preRenderNoise.width * preRenderNoise.height / 500);
+for (let i = 0; i < noiseSize; i++) {
+  if (i % 3 === 0) { // Only draw ~1/3 of potential dots to keep it sparse
+    preCtx.fillStyle = `rgba(0, 30, 60, ${Math.random() * 0.1})`;
+    const x = Math.random() * preRenderNoise.width;
+    const y = Math.random() * preRenderNoise.height;
+    preCtx.fillRect(x, y, 2, 2);
+  }
+}
+
 const MAX_BLIP_TRAIL_LENGTH = 8; // Trail length in frames
 const SWEEP_SPEED = Math.PI / 320; // Rotation speed (~5.3s/cycle)
 let sweepAngle = 0;
@@ -270,6 +297,7 @@ function initAudio() {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     audioCtx = new AudioContext();
   }
+  // Always check state and resume if needed (handles navigation away/back)
   if (audioCtx.state === 'suspended') {
     audioCtx.resume();
   }
@@ -379,14 +407,15 @@ function addGhostBlip(contact, angleFromCenter, dist) {
   const ghostX = centerX + Math.cos(angleFromCenter) * ghostDist;
   const ghostY = centerY + Math.sin(angleFromCenter) * ghostDist;
 
+  // FIXED: Store ghost position correctly for visual display
   ghostBlips.push({
-    x: contact.x,
-    y: contact.y,
-    ghostX: ghostX,
-    ghostY: ghostY,
-    opacity: 0.8, // Increased visibility!
+    x: ghostX,        // Visual position (previous position)
+    y: ghostY,
+    actualX: contact.x, // Actual current position
+    actualY: contact.y,
+    opacity: 0.8,     // Increased visibility!
     age: 0,
-    maxAge: 15 // Fade out after ~15 frames
+    maxAge: 15        // Fade out after ~15 frames
   });
 }
 
@@ -402,17 +431,9 @@ function drawBackground() {
 
   ctx.fillStyle = bgGradient;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // Subtle seabed noise (sparse dots)
-  const noiseSize = Math.floor(canvas.width * canvas.height / 500);
-  for (let i = 0; i < noiseSize; i++) {
-    if (i % 3 === 0) { // Only draw ~1/3 of potential dots to keep it sparse
-      ctx.fillStyle = `rgba(0, 30, 60, ${Math.random() * 0.1})`;
-      const x = Math.random() * canvas.width;
-      const y = Math.random() * canvas.height;
-      ctx.fillRect(x, y, 2, 2);
-    }
-  }
+  
+  // Use pre-rendered noise instead of recalculating every frame
+  ctx.drawImage(preRenderNoise, 0, 0);
 
   // Grid lines (subtle tactical overlay)
   ctx.strokeStyle = "rgba(0, 255, 64, 0.1)";
@@ -537,16 +558,18 @@ function drawContacts() {
 
     // Determine if contact is within current sweep arc — FIXED to match actual sweep bounds
     let inSweep = false;
-    // Normalize sweep angles to [0, 2π)
-    while (sweepStartAngle < 0) sweepStartAngle += Math.PI * 2;
-    while (sweepEndAngle > Math.PI * 2) sweepEndAngle -= Math.PI * 2;
-
-    if (sweepStartAngle <= sweepEndAngle) {
+    
+    // Normalize angles consistently for comparison
+    const normalizedAngle = angleFromCenter % (Math.PI * 2);
+    const normalizedStart = sweepStartAngle % (Math.PI * 2);
+    const normalizedEnd = sweepEndAngle % (Math.PI * 2);
+    
+    if (normalizedStart <= normalizedEnd) {
       // Normal arc (no wrap around 0°)
-      inSweep = angleFromCenter >= sweepStartAngle && angleFromCenter <= sweepEndAngle;
+      inSweep = normalizedAngle >= normalizedStart && normalizedAngle <= normalizedEnd;
     } else {
       // Arc crosses 0° boundary — split into two ranges
-      inSweep = angleFromCenter >= sweepStartAngle || angleFromCenter <= sweepEndAngle;
+      inSweep = normalizedAngle >= normalizedStart || normalizedAngle <= normalizedEnd;
     }
 
     // Sonar ping only when sweep *first* reaches contact (transition from !inSweep to inSweep)
@@ -575,6 +598,7 @@ function drawContacts() {
     const angleDiff2 = Math.abs(angleFromCenter - (sweepAngle + Math.PI * 2));
     const angleDiff3 = Math.abs((angleFromCenter + Math.PI * 2) - sweepAngle);
     const minAngleDiff = Math.min(angleDiff1, angleDiff2, angleDiff3);
+    
     // Normalize: 0 at center of sweep, 1 at edges
     const signalStrength = Math.min(minAngleDiff / (trailLength/2), 1);
 
@@ -625,18 +649,18 @@ function drawContacts() {
       continue;
     }
 
-    // Draw ghost blip at previous position — BRIGHTER!
-    ctx.fillStyle = `rgba(255, 255, 255, ${ghost.opacity})`; // Was *0.4
+    // FIXED: Draw ghost blip at previous position (visual ghost location)
+    ctx.fillStyle = `rgba(255, 255, 255, ${ghost.opacity})`;
     ctx.beginPath();
-    ctx.arc(ghost.x, ghost.y, 4, 0, Math.PI * 2); // Larger size: was 3
+    ctx.arc(ghost.x, ghost.y, 4, 0, Math.PI * 2); // Draw at actual ghost position
     ctx.fill();
 
     // Draw line connecting to actual position — THICKER!
-    ctx.strokeStyle = `rgba(255, 255, 255, ${ghost.opacity})`; // Was *0.2
-    ctx.lineWidth = 2; // Was 1
+    ctx.strokeStyle = `rgba(255, 255, 255, ${ghost.opacity})`;
+    ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(ghost.x, ghost.y);
-    ctx.lineTo(ghost.ghostX, ghost.ghostY);
+    ctx.lineTo(ghost.actualX, ghost.actualY); // Line to actual position
     ctx.stroke();
 
     // REMOVED: Ghost text labels to prevent visual "glitching"
@@ -706,9 +730,14 @@ function drawRadarSweep() {
   // Update sweep angle for next frame
   sweepAngle += SWEEP_SPEED;
   
-  // Play radar bleep when sweep completes a full revolution (~5.3 seconds)
+  // Normalize sweep angle to keep it bounded (prevents floating point accumulation)
   if (sweepAngle >= Math.PI * 2) {
     sweepAngle -= Math.PI * 2;
+  }
+  
+  // Play radar bleep when sweep completes a full revolution (~5.3 seconds)
+  // Check with small tolerance for the threshold
+  if (sweepAngle < SWEEP_SPEED && sweepAngle > 0) { // Just wrapped around
     playRadarBleep(); // Add the "bleep" sound every revolution
   }
 
