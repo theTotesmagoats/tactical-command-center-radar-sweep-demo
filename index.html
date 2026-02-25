@@ -1582,251 +1582,36 @@ function animate() {
     drawBackground();
     
     if (mouseX !== null && mouseY !== null) {
+      updateCoordinateDisplay();
       drawCoordinateCrosshair();
     }
     
+    // Draw animation effects
+    drawAnimationEffects();
+    
+    // Draw contacts and radar sweep
     drawContacts();
     drawRadarSweep();
-    drawAnimationEffects();
-
+    
     requestAnimationFrame(animate);
   } catch (e) {
-    console.error('Error in animation loop:', e);
+    console.error('Error in animate loop:', e);
   }
 }
 
-// Interactive controls
-canvas.addEventListener('click', (e) => {
-  try {
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    const angle = Math.random() * Math.PI * 2;
-    const depth = Math.floor(Math.random() * 400) + 50;
-
-    let speed;
-    if (depth > 50) {
-      speed = 0.3 + Math.random() * 1.7;
-    } else {
-      speed = 0.8 + Math.random() * 3.2;
-    }
-
-    const isHostile = Math.random() > 0.6; // 40% chance of hostile
-    const contactType = isHostile ? 'hostile' : 'friendly';
-    const color = isHostile ? '#ff2020' : '#00ff41';
-    const id = isHostile ? `SKUNK-${contacts.length + 1}` : `GOBLIN-${contacts.length + 1}`;
-
-    contacts.push({
-      x, y,
-      speed,
-      angle,
-      depth,
-      type: contactType,
-      color,
-      id,
-      trail: [],
-      lastInSweep: false,
-      undetectedFrames: 0
-    });
-
-    addLogEntry(`New contact ${id} acquired at bearing ${Math.round(angle * 180/Math.PI)}°.`, isHostile ? 'hostile' : 'friendly');
-  } catch (e) {
-    console.error('Error adding contact:', e);
-  }
-});
-
-// Mouse move handler for coordinate tracking
+// Add event listeners for mouse movement
 canvas.addEventListener('mousemove', (e) => {
-  try {
-    const rect = canvas.getBoundingClientRect();
-    mouseX = e.clientX - rect.left;
-    mouseY = e.clientY - rect.top;
-  } catch (e) {
-    console.error('Error tracking mouse coordinates:', e);
-  }
+  const rect = canvas.getBoundingClientRect();
+  mouseX = e.clientX - rect.left;
+  mouseY = e.clientY - rect.top;
 });
 
-// Mouse leave handler to clear coordinate display
 canvas.addEventListener('mouseleave', () => {
   mouseX = null;
   mouseY = null;
 });
 
-// LED Toggle Functions
-function toggleSonar() {
-  sonarActive = !sonarActive;
-  document.getElementById('sonarLed').classList.toggle('active', sonarActive);
-  
-  if (sonarActive) {
-    addLogEntry('Sonar system active.', 'system');
-  } else {
-    addLogEntry('Sonar system inactive.', 'system');
-  }
-}
-
-function toggleGhostEchoes() {
-  ghostEchoesEnabled = !ghostEchoesEnabled;
-  document.getElementById('ghostLed').classList.toggle('active', ghostEchoesEnabled);
-  if (!ghostEchoesEnabled) {
-    ghostBlips = [];
-  }
-  
-  addLogEntry(`Ghost echoes ${ghostEchoesEnabled ? 'enabled' : 'disabled'}.`, 'system');
-}
-
-function toggleTrails() {
-  trailsEnabled = !trailsEnabled;
-  document.getElementById('trailLed').classList.toggle('active', trailsEnabled);
-  
-  addLogEntry(`Contact trails ${trailsEnabled ? 'enabled' : 'disabled'}.`, 'system');
-}
-
-// LED Event Listeners
-document.getElementById('sonarToggle').addEventListener('click', toggleSonar);
-document.getElementById('ghostToggle').addEventListener('click', toggleGhostEchoes);
-document.getElementById('trailToggle').addEventListener('click', toggleTrails);
-
-// Range slider handler
-const rangeSlider = document.getElementById('rangeSlider');
-rangeSlider.addEventListener('input', () => {
-  minRangeNm = parseInt(rangeSlider.value);
-});
-
-// Depth slider handler
-const depthSlider = document.getElementById('depthSlider');
-depthSlider.addEventListener('input', () => {
-  maxDepthM = parseInt(depthSlider.value);
-});
-
-// Fire control button handler (torpedo control)
-document.getElementById('fireControlBtn').addEventListener('click', () => {
-  playFireControl();
-  
-  const btn = document.getElementById('fireControlBtn');
-  if (btn.textContent.includes('ARMED')) {
-    btn.textContent = 'FIRE CONTROL — SAFE';
-    btn.style.color = '#00ff41';
-    addLogEntry('Fire control safe. Torpedoes disarmed.', 'system');
-  } else {
-    btn.textContent = 'FIRE CONTROL — ARMED';
-    btn.style.color = '#ff2020';
-    addLogEntry('Fire control armed. Ready to engage targets.', 'hostile');
-  }
-});
-
-// Torpedo tube button handlers
-document.querySelectorAll('.tube-btn').forEach(tubeBtn => {
-  tubeBtn.addEventListener('click', function() {
-    const tubeNumber = this.getAttribute('data-tube');
-    
-    // Toggle between empty, ready, and armed states
-    if (this.classList.contains('armed')) {
-      this.classList.remove('armed');
-      this.classList.add('ready');
-      this.querySelector('span').innerHTML = `<span>TUBE ${tubeNumber}<br>FRIENDLY</span>`;
-      addLogEntry(`Tube ${tubeNumber}: Changed from ARMED to FRIENDLY ready state.`, 'system');
-    } else if (this.classList.contains('ready')) {
-      this.classList.remove('ready');
-      this.querySelector('span').innerHTML = `<span>TUBE ${tubeNumber}<br>EMPTY</span>`;
-      addLogEntry(`Tube ${tubeNumber}: Changed from FRIENDLY to EMPTY.`, 'system');
-    } else {
-      this.classList.add('armed');
-      const isHostile = Math.random() > 0.5;
-      this.querySelector('span').innerHTML = `<span>TUBE ${tubeNumber}<br>${isHostile ? 'HOSTILE' : 'FRIENDLY'}<br>ARMED</span>`;
-      addLogEntry(`Tube ${tubeNumber}: Arming ${isHostile ? 'hostile' : 'friendly'} torpedo.`, isHostile ? 'hostile' : 'friendly');
-    }
-  });
-});
-
-// Coordinate input and fire button handlers
-const targetBearingInput = document.getElementById('targetBearing');
-const targetRangeInput = document.getElementById('targetRange');
-const fireBtn = document.getElementById('fireBtn');
-
-function calculateTargetCoordinates(bearingDeg, rangeNm) {
-  const bearingRad = (bearingDeg * Math.PI / 180);
-  const distPx = rangeNm * 5; // 5px = 1nm
-  
-  const x = centerX + Math.cos(bearingRad) * distPx;
-  const y = centerY + Math.sin(bearingRad) * distPx;
-  
-  return { x, y };
-}
-
-function fireWeapon() {
-  if (isReloading) return;
-  
-  const bearing = parseInt(targetBearingInput.value);
-  const range = parseInt(targetRangeInput.value);
-  
-  // Validate inputs
-  if (isNaN(bearing) || bearing < 0 || bearing > 359) {
-    addLogEntry('INVALID TARGET — BEARING MUST BE 0-359°', 'system');
-    return;
-  }
-  
-  if (isNaN(range) || range < 1 || range > 70) {
-    addLogEntry('INVALID TARGET — RANGE MUST BE 1-70 NM', 'system');
-    return;
-  }
-  
-  // Calculate target coordinates
-  const { x, y } = calculateTargetCoordinates(bearing, range);
-  
-  // Check for contacts within 15px of target point
-  let hitContact = null;
-  let minDistance = Infinity;
-  
-  for (const contact of contacts) {
-    const dx = contact.x - x;
-    const dy = contact.y - y;
-    const distance = Math.sqrt(dx*dx + dy*dy);
-    
-    if (distance < 15 && distance < minDistance) {
-      minDistance = distance;
-      hitContact = contact;
-    }
-  }
-  
-  if (hitContact) {
-    // DIRECT HIT
-    playExplosionSound();
-    
-    // Add expanding orange/red circle animation
-    hitEffects.push({
-      x: hitContact.x,
-      y: hitContact.y,
-      radius: 5,
-      opacity: 1.0
-    });
-    
-    // Remove contact from array
-    contacts = contacts.filter(c => c !== hitContact);
-    
-    addLogEntry(`DIRECT HIT — ${hitContact.id}`, 'system');
-  } else {
-    // MISS - Add small white splash circle animation
-    missEffects.push({
-      x: x,
-      y: y,
-      radius: 3,
-      opacity: 1.0
-    });
-    
-    addLogEntry(`MISS — BRG:${bearing}° RNG:${range}nm`, 'system');
-  }
-  
-  // Start reload timer
-  isReloading = true;
-  reloadTimeLeft = 3;
-  fireBtn.disabled = true;
-  fireBtn.textContent = 'RELOAD 3...';
-}
-
-fireBtn.addEventListener('click', fireWeapon);
-
-// Start the animation
+// Start the animation loop
 animate();
 </script>
 </body>
