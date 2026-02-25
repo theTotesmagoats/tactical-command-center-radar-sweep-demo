@@ -3,352 +3,524 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tactical Radar Sweep Demo — Authenticated Naval Ops</title>
+  <title>SSN Virginia-class Submarine Sonar Dashboard</title>
+  
+  <!-- Google Fonts Import -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  
   <style>
-  body {
-    margin: 0;
-    padding: 20px;
-    background-color: #050508;
-    color: #cfc;
-    font-family: 'Courier New', monospace;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  
-  h1 {
-    position: absolute;
-    top: 20px;
-    width: 100%;
-    text-align: center;
-    text-shadow: 0 0 8px rgba(207,255,207,0.9);
-    font-size: 1.8rem;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    border-bottom: 3px solid #cfc;
-    padding-bottom: 10px;
-    margin: 0;
-  }
+    :root {
+      --phosphor-green: #00ff41;
+      --phosphor-dim: #00aa2b;
+      --phosphor-faint: #004d14;
+      --amber-warn: #ff8c00;
+      --red-alert: #ff2020;
+      --panel-dark: #0d120d;
+      --panel-darker: #080c08;
+      --steel-border: #3a4a3a;
+    }
 
-  /* Main container for horizontal layout */
-  .main-container {
-    display: flex;
-    gap: 25px;
-    align-items: flex-end; /* Align bottoms of radar and controls */
-    position: relative;
-  }
-  
-  .console-border {
-    border: 4px inset #333;
-    border-radius: 0;
-    padding: 8px;
-    background: linear-gradient(135deg, #0a0a0a 0%, #050508 100%);
-    box-shadow: inset 0 0 40px rgba(0,0,0,1), 0 0 20px rgba(207,255,207,0.05);
-    position: relative;
-  }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
-  canvas {
-    display: block;
-    background-color: #0a0a10;
-    cursor: crosshair;
-  }
-  
-  /* Control Panel - Submarine Style */
-  .control-panel {
-    width: 340px;
-    display: flex;
-    flex-direction: column;
-    gap: 25px;
-  }
+    body {
+      background-color: var(--panel-dark);
+      color: var(--phosphor-green);
+      font-family: 'Share Tech Mono', monospace;
+      overflow-x: hidden;
+      padding: 20px;
+    }
 
-  .panel-group {
-    background: linear-gradient(180deg, #121216 0%, #0f0f12 100%);
-    border: 3px inset #444;
-    padding: 15px;
-    border-radius: 0;
-    box-shadow: inset 0 0 25px rgba(0,0,0,0.9), 0 0 15px rgba(0,0,0,0.7);
-  }
+    h1, h2, h3 {
+      font-family: 'Orbitron', sans-serif;
+      letter-spacing: 2px;
+    }
 
-  .panel-group h3 {
-    margin: 0 0 12px 0;
-    font-size: 13px;
-    color: #cfc;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    border-bottom: 2px solid #333;
-    padding-bottom: 8px;
-    background: linear-gradient(90deg, transparent, rgba(207,255,207,0.1), transparent);
-  }
-  
-  .status-bar {
-    background: linear-gradient(90deg, #0a0a0c 0%, #050507 100%);
-    border: 2px inset #444;
-    padding: 12px;
-    font-size: 0.9rem;
-    color: #afa;
-    text-align: center;
-    letter-spacing: 1px;
-    margin-bottom: 10px;
-    box-shadow: inset 0 0 15px rgba(0,0,0,0.8);
-  }
-  
-  .controls {
-    display: flex;
-    gap: 15px;
-    align-items: center;
-  }
+    /* Main Dashboard Grid */
+    .dashboard {
+      display: grid;
+      grid-template-columns: 380px 680px 450px;
+      gap: 15px;
+      max-width: 1550px;
+      margin: 0 auto;
+    }
 
-  /* Enhanced Submarine Switches */
-  button {
-    background: linear-gradient(135deg, #2a2a3e 0%, #1f1f2e 50%, #16162a 100%);
-    border: 4px inset #555;
-    color: #cfc;
-    padding: 18px 32px;
-    font-family: 'Courier New', monospace;
-    font-weight: bold;
-    cursor: pointer;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    font-size: 14px;
-    transition: all 0.05s;
-    box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 3px 10px rgba(0,0,0,0.6);
-    border-radius: 4px;
-    height: 56px; /* Fixed height for alignment */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
+    /* Panel Styling - SSN Virginia-class Aesthetic */
+    .panel {
+      background: linear-gradient(135deg, var(--panel-dark) 0%, var(--panel-darker) 100%);
+      border: 3px inset var(--steel-border);
+      padding: 12px;
+      position: relative;
+      box-shadow: inset 0 0 30px rgba(0,0,0,0.9), 0 4px 8px rgba(0,0,0,0.5);
+    }
 
-  button:hover {
-    background: linear-gradient(135deg, #3a3a4e 0%, #2a2a3e 50%, #1f1f2e 100%);
-    border-color: #777;
-    box-shadow: inset 0 0 28px rgba(0,0,0,0.9), 0 4px 12px rgba(0,0,0,0.7), 0 0 15px rgba(207,255,207,0.2);
-    transform: translateY(-1px);
-  }
+    /* CSS Rivets at top corners */
+    .panel::before {
+      content: "";
+      position: absolute;
+      top: 6px;
+      left: 6px;
+      width: 12px;
+      height: 12px;
+      background: radial-gradient(circle, #5a6a5a 30%, #2a3a2a 70%);
+      border-radius: 50%;
+      box-shadow: inset 1px 1px 3px rgba(0,0,0,0.8);
+    }
 
-  button:active {
-    transform: translateY(3px);
-    border: 4px outset #666;
-    background: linear-gradient(135deg, #1a1a2e 0%, #121222 50%, #0e0e1a 100%);
-    box-shadow: inset 0 0 32px rgba(0,0,0,0.95), 0 0 6px rgba(207,255,207,0.1);
-  }
-  
-  /* Submarine button metal texture effect */
-  button::before {
-    content: "";
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    background-image: 
-      repeating-linear-gradient(45deg, transparent 0px, transparent 2px, rgba(255,255,255,0.03) 2px, rgba(255,255,255,0.03) 4px);
-    pointer-events: none;
-    border-radius: 4px;
-    z-index: 1;
-  }
-  
-  button span {
-    position: relative;
-    z-index: 2;
-  }
+    .panel::after {
+      content: "";
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      width: 12px;
+      height: 12px;
+      background: radial-gradient(circle, #5a6a5a 30%, #2a3a2a 70%);
+      border-radius: 50%;
+      box-shadow: inset 1px 1px 3px rgba(0,0,0,0.8);
+    }
 
-  /* Rocker Switch Style for Toggle Buttons - Enhanced Submarine Look */
-  .rocker-switch {
-    display: flex;
-    gap: 8px;
-    margin-top: 10px;
-    justify-content: center;
-  }
+    /* Panel Labels with Orbitron font */
+    .panel-label {
+      font-family: 'Orbitron', sans-serif;
+      color: var(--phosphor-green);
+      font-size: 14px;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      display: flex;
+      align-items: center;
+    }
 
-  .toggle-btn {
-    width: 100%;
-    height: 42px;
-    background: linear-gradient(135deg, #3a2a2a 0%, #2a1f1f 50%, #1f1616 100%);
-    border: 3px inset #666;
-    color: #cfc;
-    font-size: 11px;
-    letter-spacing: 2px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: inset 0 0 15px rgba(0,0,0,0.8), 0 2px 6px rgba(0,0,0,0.4);
-  }
+    .panel-label::before {
+      content: "•";
+      color: var(--phosphor-green);
+      font-size: 18px;
+      margin-right: 8px;
+      animation: pulse 2s infinite;
+    }
 
-  .toggle-btn.active {
-    background: linear-gradient(135deg, #1a3a1a 0%, #142a14 50%, #101f10 100%);
-    border-color: #cfc;
-    color: #cfc;
-    box-shadow: inset 0 0 20px rgba(0,255,128,0.35), 0 0 15px rgba(207,255,207,0.25);
-  }
-  
-  /* Rocker switch metal texture */
-  .toggle-btn::before {
-    content: "";
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    background-image: 
-      repeating-linear-gradient(45deg, transparent 0px, transparent 2px, rgba(255,255,255,0.03) 2px, rgba(255,255,255,0.03) 4px);
-    pointer-events: none;
-    border-radius: 3px;
-    z-index: 1;
-  }
-  
-  .toggle-btn.active::before {
-    background-image: 
-      repeating-linear-gradient(45deg, transparent 0px, transparent 2px, rgba(0,255,128,0.05) 2px, rgba(0,255,128,0.05) 4px);
-  }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
 
-  /* Tactical Slider Container */
-  .tactical-slider {
-    display: flex;
-    flex-direction: column;
-    min-width: 260px;
-    background: linear-gradient(180deg, #0a0a0c 0%, #050507 100%);
-    padding: 14px;
-    border-radius: 0;
-    border-left: 3px solid #333;
-    box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
-  }
+    /* CRT Housing for Radar */
+    .crt-housing {
+      position: relative;
+      border: 4px inset var(--steel-border);
+      padding: 8px;
+      background: #0a0f0a;
+      box-shadow: inset 0 0 25px rgba(0,0,0,1), 0 3px 6px rgba(0,0,0,0.4);
+    }
 
-  /* Slider Labels */
-  .tactical-slider label {
-    font-size: 11px;
-    color: #cfc;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    margin-bottom: 10px;
-    background: linear-gradient(90deg, transparent, rgba(207,255,207,0.2), transparent);
-    display: inline-block;
-    padding: 4px 8px;
-    border-radius: 3px;
-  }
+    /* Scanline Overlay Effect */
+    .scanlines {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 2px,
+        rgba(0,0,0,0.15) 2px,
+        rgba(0,0,0,0.15) 4px
+      );
+      pointer-events: none;
+      z-index: 10;
+    }
 
-  /* Range and Depth Displays */
-  .range-display, .depth-display {
-    display: flex;
-    justify-content: space-between;
-    font-size: 10px;
-    color: #afa;
-    text-align: center;
-    letter-spacing: 1px;
-    background: linear-gradient(90deg, rgba(255,255,255,0.05), transparent);
-    padding: 6px 8px;
-    border-radius: 3px;
-    margin-top: 8px;
-  }
+    /* CRT Vignette Effect */
+    .vignette {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle, transparent 65%, rgba(0,0,0,0.4) 95%);
+      pointer-events: none;
+      z-index: 11;
+    }
 
-  /* Military-Style Sliders - Enhanced Submarine Look */
-  input[type=range] {
-    -webkit-appearance: none;
-    width: 100%;
-    background: transparent;
-    margin: 10px 0;
-  }
+    /* Radar Canvas */
+    #radarCanvas {
+      display: block;
+      width: 100%;
+      height: 580px;
+      background-color: #0a0f0a;
+      cursor: crosshair;
+    }
 
-  input[type=range]:focus {
-    outline: none;
-  }
+    /* LCD-style Readout Areas */
+    .lcd-readout {
+      background: rgba(0, 20, 0, 0.6);
+      border: 1px solid var(--phosphor-dim);
+      padding: 8px;
+      margin-bottom: 10px;
+      font-size: 14px;
+      letter-spacing: 1px;
+    }
 
-  input[type=range]::-webkit-slider-runnable-track {
-    width: 100%;
-    height: 8px;
-    cursor: pointer;
-    background: linear-gradient(90deg, #1a1a2e 0%, #2a2a3e 50%, #1a1a2e 100%);
-    border-radius: 0;
-    box-shadow: inset 0 0 12px rgba(0,0,0,0.9), 0 2px 4px rgba(0,0,0,0.5);
-    border: 1px solid #333;
-  }
+    .lcd-readout span {
+      color: var(--phosphor-green);
+      text-shadow: 0 0 2px var(--phosphor-green);
+    }
 
-  input[type=range]::-webkit-slider-thumb {
-    height: 20px;
-    width: 16px;
-    background: linear-gradient(90deg, #4a4a5e 0%, #3a3a4e 50%, #2a2a3e 100%);
-    cursor: pointer;
-    border-radius: 0;
-    box-shadow: inset 0 0 12px rgba(0,0,0,0.8), 0 0 6px rgba(255,255,255,0.4);
-    margin-top: -7px;
-    border: 1px solid #555;
-  }
+    /* Clock Display */
+    .clock-display {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 36px;
+      color: var(--phosphor-green);
+      text-align: center;
+      margin-bottom: 15px;
+      background: rgba(0, 20, 0, 0.8);
+      padding: 12px;
+      border: 2px inset var(--phosphor-dim);
+      box-shadow: inset 0 0 15px rgba(0,0,0,0.9);
+    }
 
-  input[type=range]::-moz-range-track {
-    width: 100%;
-    height: 8px;
-    cursor: pointer;
-    background: linear-gradient(90deg, #1a1a2e 0%, #2a2a3e 50%, #1a1a2e 100%);
-    border-radius: 0;
-    box-shadow: inset 0 0 12px rgba(0,0,0,0.9), 0 2px 4px rgba(0,0,0,0.5);
-    border: 1px solid #333;
-  }
+    /* Ship Status Grid */
+    .ship-status {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 15px;
+    }
 
-  input[type=range]::-moz-range-thumb {
-    height: 20px;
-    width: 16px;
-    background: linear-gradient(90deg, #4a4a5e 0%, #3a3a4e 50%, #2a2a3e 100%);
-    cursor: pointer;
-    border-radius: 0;
-    box-shadow: inset 0 0 12px rgba(0,0,0,0.8), 0 0 6px rgba(255,255,255,0.4);
-    border: 1px solid #555;
-  }
-  
-  /* Panel dividers */
-  .panel-divider {
-    height: 3px;
-    background: linear-gradient(90deg, transparent, #333, transparent);
-    margin: 8px 0;
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.8);
-  }
-  
-  /* Fix for canvas height alignment */
-  .canvas-wrapper {
-    display: flex;
-    align-items: flex-end;
-  }
+    .status-item {
+      background: rgba(0, 20, 0, 0.7);
+      padding: 6px;
+      border-radius: 2px;
+      font-size: 13px;
+    }
+
+    .status-label {
+      color: var(--phosphor-dim);
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+
+    /* Depth Slider */
+    .depth-control {
+      margin-bottom: 15px;
+    }
+
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%;
+      background: transparent;
+    }
+
+    input[type=range]:focus { outline: none; }
+
+    input[type=range]::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 8px;
+      cursor: pointer;
+      background: linear-gradient(90deg, #0d1a0d, #0f2a0f, #0d1a0d);
+      border-radius: 0;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.8);
+      border: 1px solid var(--phosphor-dim);
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      height: 16px;
+      width: 14px;
+      background: linear-gradient(90deg, #2a3a2a, #1a2a1a);
+      cursor: pointer;
+      border-radius: 0;
+      box-shadow: inset 0 0 4px rgba(0,0,0,0.8), 0 0 4px var(--phosphor-green);
+      margin-top: -5px;
+      border: 1px solid var(--phosphor-dim);
+    }
+
+    /* Torpedo Tube Rack */
+    .torpedo-rack {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px;
+      margin-bottom: 15px;
+    }
+
+    .tube-status {
+      background: rgba(0, 30, 0, 0.8);
+      border: 1px solid var(--phosphor-dim);
+      padding: 8px;
+      font-size: 12px;
+      text-align: center;
+      position: relative;
+    }
+
+    .tube-status.ready {
+      background: rgba(0, 50, 0, 0.6);
+      border-color: var(--phosphor-green);
+    }
+
+    .tube-status.armed {
+      background: rgba(50, 0, 0, 0.4);
+      border-color: var(--red-alert);
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    /* Fire Control Button */
+    .fire-control-btn {
+      background: linear-gradient(135deg, #2a1a1a 0%, #1a0f0f 50%, #160b0b 100%);
+      border: 3px inset #444;
+      color: var(--red-alert);
+      padding: 14px;
+      font-family: 'Orbitron', sans-serif;
+      font-weight: bold;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      box-shadow: inset 0 0 15px rgba(0,0,0,0.9), 0 3px 8px rgba(0,0,0,0.6);
+    }
+
+    .fire-control-btn:hover {
+      background: linear-gradient(135deg, #3a2a2a 0%, #2a1f1f 50%, #261b1b 100%);
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.95), 0 4px 10px rgba(0,0,0,0.7);
+    }
+
+    .fire-control-btn:active {
+      transform: translateY(2px);
+      border: 3px outset #666;
+    }
+
+    /* LED Indicators */
+    .led-container {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 15px;
+      padding: 8px;
+      background: rgba(0, 20, 0, 0.5);
+      border-radius: 4px;
+    }
+
+    .led-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+    }
+
+    .led {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #2a3a2a;
+      box-shadow: inset 0 1px 2px rgba(0,0,0,0.6);
+    }
+
+    .led.active {
+      background: var(--phosphor-green);
+      box-shadow: 0 0 4px var(--phosphor-green), inset 0 1px 2px rgba(255,255,255,0.3);
+    }
+
+    /* Contact Log */
+    .contact-log {
+      background: rgba(0, 10, 0, 0.8);
+      border: 1px solid var(--phosphor-dim);
+      height: 180px;
+      overflow-y: auto;
+      padding: 6px;
+      font-size: 12px;
+      margin-bottom: 15px;
+    }
+
+    .log-entry {
+      padding: 3px 0;
+      border-bottom: 1px dashed rgba(0, 50, 0, 0.4);
+    }
+
+    .log-time { color: var(--phosphor-dim); margin-right: 6px; }
+    .log-friendly { color: var(--phosphor-green); }
+    .log-hostile { color: var(--red-alert); }
+    .log-system { color: var(--amber-warn); }
+
+    /* Bearing/Range Readout */
+    .bearing-readout {
+      background: rgba(0, 20, 0, 0.7);
+      border: 1px solid var(--phosphor-dim);
+      padding: 8px;
+      font-size: 14px;
+    }
+
+    /* Acoustic Data Panel */
+    .acoustic-data {
+      background: rgba(0, 20, 0, 0.6);
+      border: 1px solid var(--phosphor-dim);
+      padding: 8px;
+      font-size: 12px;
+    }
+
+    /* Range Filter Slider */
+    .range-control {
+      margin-bottom: 15px;
+    }
+
+    /* Scrollbar Styling */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0a0f0a; }
+    ::-webkit-scrollbar-thumb { background: var(--phosphor-dim); border-radius: 3px; }
   </style>
 </head>
 <body>
-  <h1>TACTICAL RADAR SWEEP (60 FPS) — PHOSPHOR GLOW ENGINE</h1>
+  <div class="dashboard">
+    
+    <!-- LEFT PANEL -->
+    <div class="panel">
+      <h2 class="panel-label">Navigation & Operations</h2>
+      
+      <!-- UTC Clock -->
+      <div class="clock-display" id="utcClock">00:00:00Z</div>
+      
+      <!-- Mission Timer -->
+      <div class="lcd-readout">
+        MISSION ELAPSED TIME: <span id="missionTimer">00:00:00</span>
+      </div>
+      
+      <!-- Ship Status Readout -->
+      <h3 class="panel-label" style="font-size: 12px;">Vessel Statistics</h3>
+      <div class="ship-status">
+        <div class="status-item">
+          <div class="status-label">Depth</div>
+          <span id="depthReadout">0m</span>
+        </div>
+        <div class="status-item">
+          <div class="status-label">Speed</div>
+          <span id="speedReadout">0 kts</span>
+        </div>
+        <div class="status-item">
+          <div class="status-label">Heading</div>
+          <span id="headingReadout">000°</span>
+        </div>
+        <div class="status-item">
+          <div class="status-label">Reactor</div>
+          <span id="reactorReadout">CRITICAL</span>
+        </div>
+      </div>
 
-  <div class="main-container">
-    <!-- Radar Canvas on the Left -->
-    <div class="console-border canvas-wrapper">
-      <canvas id="radarCanvas" width="700" height="580"></canvas>
+      <!-- Depth Slider -->
+      <h3 class="panel-label" style="font-size: 12px;">Depth Control</h3>
+      <div class="depth-control">
+        <label for="depthSlider" style="display:block; margin-bottom:6px;">
+          MAX DEPTH FILTER (m)
+        </label>
+        <input type="range" id="depthSlider" min="0" max="500" value="300" step="10">
+      </div>
+
+      <!-- Torpedo Tube Rack -->
+      <h3 class="panel-label" style="font-size: 12px;">Torpedo Control</h3>
+      <div class="torpedo-rack" id="torpedoRack">
+        <div class="tube-status ready">TUBE 1<br><span>FRIENDLY</span></div>
+        <div class="tube-status ready">TUBE 2<br><span>ARMED</span></div>
+        <div class="tube-status">TUBE 3<br><span>EMPTY</span></div>
+        <div class="tube-status ready">TUBE 4<br><span>FRIENDLY</span></div>
+        <div class="tube-status armed">TUBE 5<br><span>HOSTILE</span></div>
+        <div class="tube-status">TUBE 6<br><span>EMPTY</span></div>
+        <div class="tube-status ready">TUBE 7<br><span>FRIENDLY</span></div>
+        <div class="tube-status armed">TUBE 8<br><span>HOSTILE</span></div>
+      </div>
+
+      <!-- Fire Control Button -->
+      <button id="fireControlBtn" class="fire-control-btn">
+        FIRE CONTROL — ARMED
+      </button>
     </div>
 
-    <!-- Control Panel on the Right -->
-    <div class="control-panel">
+    <!-- CENTER PANEL (Radar) -->
+    <div class="panel">
+      <h2 class="panel-label">Sonar Display Array</h2>
       
-      <!-- Status Bar -->
-      <div class="status-bar">
-        FPS: <span id="fpsDisplay">60</span> | CONTACTS: <span id="contactCount">2</span> | DEPTH: 300m
-      </div>
-      
-      <div class="panel-group">
-        <h3>Active Sonar Control</h3>
-        <button id="sonarBtn"><span>ACTIVATE SONAR (PING)</span></button>
-        <p style="font-size: 11px; color: #888; margin-top: 12px;">Click radar to add contacts • Pings sonar when sweep detects objects</p>
+      <div class="crt-housing">
+        <canvas id="radarCanvas" width="680" height="580"></canvas>
+        
+        <!-- CRT Effects -->
+        <div class="scanlines"></div>
+        <div class="vignette"></div>
       </div>
 
-      <div class="panel-group">
-        <h3>Range Filtering System</h3>
-        <div class="tactical-slider">
-          <label for="rangeFilter">Range Filter (nm)</label>
-          <input type="range" id="rangeFilter" min="10" max="60" value="50" step="5">
-          <div class="range-display"><span id="minRangeDisplay">50</span> — <span id="maxRangeDisplay">300</span></div>
+      <!-- Thin Label Strip -->
+      <div style="margin-top: 12px; display:flex; justify-content:space-between; font-size: 13px;">
+        <span>FPS: <span id="fpsDisplay" style="color:var(--phosphor-green)">60</span></span>
+        <span>CONTACTS: <span id="contactCount" style="color:var(--phosphor-green)">2</span></span>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="panel">
+      <h2 class="panel-label">Acoustic Analysis</h2>
+      
+      <!-- LED Indicators -->
+      <div class="led-container">
+        <div class="led-group">
+          <div id="sonarLed" class="led active"></div>
+          <span>SONAR ACTIVE</span>
+        </div>
+        <div class="led-group">
+          <div id="ghostLed" class="led active"></div>
+          <span>GHOST ECHOES</span>
+        </div>
+        <div class="led-group">
+          <div id="trailLed" class="led active"></div>
+          <span>TRAILS</span>
         </div>
       </div>
 
-      <div class="panel-group">
-        <h3>Echo Processing</h3>
-        <button id="toggleGhostBtn" class="rocker-switch active"><span class="toggle-btn active">GHOST: ON</span></button>
+      <!-- Range Filter Slider -->
+      <h3 class="panel-label" style="font-size: 12px;">Range Filtering</h3>
+      <div class="range-control">
+        <label for="rangeSlider" style="display:block; margin-bottom:6px;">
+          MIN RANGE FILTER (nm)
+        </label>
+        <input type="range" id="rangeSlider" min="5" max="100" value="20" step="5">
       </div>
 
-      <div class="panel-group">
-        <h3>Depth Filtering System</h3>
-        <div class="tactical-slider">
-          <label for="depthFilter">Depth Filter (m)</label>
-          <input type="range" id="depthFilter" min="0" max="500" value="300" step="10">
-          <div class="depth-display"><span id="minDepthDisplay">0</span> — <span id="maxDepthDisplay">300</span></div>
+      <!-- Contact Log -->
+      <h3 class="panel-label" style="font-size: 12px;">Contact Log</h3>
+      <div class="contact-log" id="contactLog">
+        <div class="log-entry">
+          <span class="log-time">0000Z</span>
+          <span class="log-system">System initialized. Sonar active.</span>
         </div>
+        <div class="log-entry">
+          <span class="log-time">0015Z</span>
+          <span class="log-friendly">GOBLIN-1 detected at bearing 45°.</span>
+        </div>
+      </div>
+
+      <!-- Bearing/Range Readout -->
+      <h3 class="panel-label" style="font-size: 12px;">Target Data</h3>
+      <div class="bearing-readout">
+        <div>TRACKED CONTACTS: <span id="trackedCount">0</span></div>
+        <br>
+        <div>LATEST ACQUISITION:</div>
+        <div style="margin-top:4px;">
+          ID: <span id="latestContactId" style="color:var(--amber-warn)">--</span><br>
+          BEARING: <span id="latestBearing">--°</span> | 
+          RANGE: <span id="latestRange">-- nm</span><br>
+          DEPTH: <span id="latestDepth">-- m</span>
+        </div>
+      </div>
+
+      <!-- Acoustic Environment Data -->
+      <h3 class="panel-label" style="font-size: 12px;">Acoustic Conditions</h3>
+      <div class="acoustic-data">
+        <div>NOISE FLOOR: <span id="noiseFloor">-45 dB</span></div>
+        <div>TEMPERATURE: <span id="waterTemp">18°C at 200m</span></div>
+        <div>SALINITY: <span id="salinity">35 ppt</span></div>
+        <div>CURRENT: <span id="currentDir">NE at 2 kts</span></div>
       </div>
 
     </div>
@@ -361,31 +533,82 @@ const ctx = canvas.getContext('2d', { alpha: false });
 
 // State variables
 let contacts = [
-  { x: 350, y: 150, speed: 0.75, angle: Math.PI / 4, depth: 50 }, // Friendly sub (green) — shallow depth
-  { x: 550, y: 400, speed: 0.6, angle: -Math.PI / 3, depth: 200 }   // Enemy contact (red) — deep depth
+  { 
+    id: 'GOBLIN-1', 
+    x: 340, 
+    y: 150, 
+    speed: 0.75, 
+    angle: Math.PI / 4, 
+    depth: 50,
+    type: 'friendly',
+    color: '#00ff41',
+    trail: [],
+    lastInSweep: false,
+    undetectedFrames: 0
+  },
+  { 
+    id: 'SKUNK-2', 
+    x: 580, 
+    y: 400, 
+    speed: 0.6, 
+    angle: -Math.PI / 3, 
+    depth: 200,
+    type: 'hostile',
+    color: '#ff2020',
+    trail: [],
+    lastInSweep: false,
+    undetectedFrames: 0
+  }
 ];
 
-let blipTrails = []; // Store recent positions for trails
-const MAX_BLIP_TRAIL_LENGTH = 8; // Trail length in frames
-const SWEEP_SPEED = Math.PI / 320; // Rotation speed (~5.3s/cycle)
+// System state
+const MAX_TRAIL_LENGTH = 10;
+const SWEEP_SPEED = Math.PI / 320;
 let sweepAngle = 0;
 let lastTime = performance.now();
 let frameCount = 0;
 let fps = 60;
 
-// Range filter settings (in nm, scale: 5px = 1nm)
-let minRangeNm = 10;
-let maxRangeNm = 300;
-
-// Depth filter settings
-let minDepthM = 0;
+// Filter settings (in nm, scale: 5px = 1nm)
+let minRangeNm = 5;
 let maxDepthM = 300;
 
-// Ghost echo toggle
+// Toggle states
+let sonarActive = true;
 let ghostEchoesEnabled = true;
+let trailsEnabled = true;
 
 // Audio context for sonar
 let audioCtx = null;
+
+// Timer state
+let missionStartTime = performance.now();
+let lastUtcUpdate = performance.now();
+
+// Initialize contact logs
+const logContainer = document.getElementById('contactLog');
+
+function addLogEntry(message, type = 'system') {
+  const now = new Date();
+  const utcTime = `${String(now.getUTCHours()).padStart(2, '0')}${String(now.getUTCMinutes()).padStart(2, '0')}Z`;
+  
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  
+  let logClass = 'log-system';
+  if (type === 'friendly') logClass = 'log-friendly';
+  if (type === 'hostile') logClass = 'log-hostile';
+  
+  entry.innerHTML = `<span class="log-time">${utcTime}</span><span class="${logClass}">${message}</span>`;
+  
+  // Insert at top
+  logContainer.insertBefore(entry, logContainer.firstChild);
+  
+  // Keep only last 30 entries
+  while (logContainer.children.length > 30) {
+    logContainer.removeChild(logContainer.lastChild);
+  }
+}
 
 function initAudio() {
   if (!audioCtx) {
@@ -397,7 +620,7 @@ function initAudio() {
   }
 }
 
-// Play sonar ping with swapped sound characteristics - uses original blip sound
+// Play sonar ping
 function playSonarPing(bearingAngle, contactSpeed) {
   initAudio();
   
@@ -405,23 +628,26 @@ function playSonarPing(bearingAngle, contactSpeed) {
   const gainNode = audioCtx.createGain();
   
   osc.type = 'sine';
-  
-  // Original blip sound parameters but used for ping
-  osc.frequency.setValueAtTime(1200, audioCtx.currentTime); // High pitch bleep
-  gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime); // Subtle volume
+  osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
+  gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
   gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
   
-  osc.connect(gainNode);
+  // Stereo panning based on bearing
+  const panner = audioCtx.createStereoPanner();
+  panner.pan.value = Math.sin(bearingAngle);
+  
+  osc.connect(panner);
+  panner.connect(gainNode);
   gainNode.connect(audioCtx.destination);
   
   osc.start();
   osc.stop(audioCtx.currentTime + 0.1);
 
-  // Visual ping effect — create expanding echo ring at sweep position
+  // Visual ping effect
   createSonarEchoRing(sweepAngle);
 }
 
-// Play radar bleep with swapped sound characteristics - uses original ping sound
+// Play radar bleep
 function playRadarBleep() {
   if (!audioCtx) return;
   
@@ -429,30 +655,11 @@ function playRadarBleep() {
   const gainNode = audioCtx.createGain();
   
   osc.type = 'sine';
+  osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(60, audioCtx.currentTime + 0.3);
   
-  // Original ping sound parameters but used for bleep
-  // Doppler shift: pitch changes based on relative speed
-  let baseFreq = 200;
-  if (typeof contactSpeed !== 'undefined' && contactSpeed > 0) {
-    // Higher pitch if moving toward sweep direction, lower if away
-    const dopplerFactor = 1 + (contactSpeed * 0.05); // ±5% shift max
-    baseFreq *= dopplerFactor;
-  }
-  
-  osc.frequency.setValueAtTime(baseFreq, audioCtx.currentTime);
-  osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.3);
-  
-  // Create spatial effect (stereo panning)
   const panner = audioCtx.createStereoPanner();
-  
-  if (typeof bearingAngle !== 'undefined') {
-    // Map bearing to pan: North=0°, East=90°, South=180°, West=270°
-    // Pan value: -1 (left) to +1 (right), 0 = center
-    panner.pan.value = Math.sin(bearingAngle);
-  } else {
-    // Random direction if no bearing specified (for manual ping button)
-    panner.pan.value = Math.random() * 2 - 1;
-  }
+  panner.pan.value = Math.random() * 2 - 1;
   
   osc.connect(panner);
   panner.connect(gainNode);
@@ -465,26 +672,37 @@ function playRadarBleep() {
   osc.stop(audioCtx.currentTime + 0.6);
 }
 
-let sonarWaves = []; // Old-style concentric rings
-let echoRings = [];  // New: directional echo rings from contacts
-let ghostBlips = []; // Ghost echoes at previous positions
-
-function createSonarWaveform() {
-  sonarWaves.push({
-    x: canvas.width / 2,
-    y: canvas.height / 2,
-    radius: 10,
-    opacity: 0.8
-  });
+// Play fire control sound
+function playFireControl() {
+  if (!audioCtx) return;
+  
+  const osc = audioCtx.createOscillator();
+  const gainNode = audioCtx.createGain();
+  
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.2);
+  
+  gainNode.gain.setValueAtTime(0.4, audioCtx.currentTime);
+  gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
+  
+  osc.connect(gainNode);
+  gainNode.connect(audioCtx.destination);
+  
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.35);
 }
 
-// Create echo ring for contact detection
+let sonarWaves = [];
+let echoRings = [];
+let ghostBlips = [];
+
 function createSonarEchoRing(sweepAngle) {
   const centerX = canvas.width / 2;
   const centerY = canvas.height / 2;
   
   echoRings.push({
-    x: centerX + Math.cos(sweepAngle) * (canvas.width/1.8), // Ring starts near edge
+    x: centerX + Math.cos(sweepAngle) * (canvas.width/1.8),
     y: centerY + Math.sin(sweepAngle) * (canvas.width/1.8),
     radius: 5,
     opacity: 0.6,
@@ -492,15 +710,13 @@ function createSonarEchoRing(sweepAngle) {
   });
 }
 
-// Add ghost blip for contact that just passed under sweep
 function addGhostBlip(contact, angleFromCenter, dist) {
   if (!ghostEchoesEnabled) return;
 
   const centerX = canvas.width / 2;
   const centerY = canvas.height / 2;
 
-  // Calculate previous position based on current movement vector
-  const ghostDist = Math.max(50, dist - (contact.speed * 3)); // Slightly closer than actual
+  const ghostDist = Math.max(50, dist - (contact.speed * 3));
   const ghostX = centerX + Math.cos(angleFromCenter) * ghostDist;
   const ghostY = centerY + Math.sin(angleFromCenter) * ghostDist;
 
@@ -509,15 +725,14 @@ function addGhostBlip(contact, angleFromCenter, dist) {
     y: contact.y,
     ghostX: ghostX,
     ghostY: ghostY,
-    opacity: 0.8, // Increased visibility!
+    opacity: 0.8,
     age: 0,
-    maxAge: 15 // Fade out after ~15 frames
+    maxAge: 15
   });
 }
 
-// Draw ocean background with "depth illusion"
+// Draw ocean background with depth illusion
 function drawBackground() {
-  // Deep ocean gradient
   const bgGradient = ctx.createRadialGradient(
     canvas.width/2, canvas.height/2, 0,
     canvas.width/2, canvas.height/2, Math.max(canvas.width, canvas.height)/1.5
@@ -528,10 +743,10 @@ function drawBackground() {
   ctx.fillStyle = bgGradient;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Subtle seabed noise (sparse dots)
+  // Subtle seabed noise
   const noiseSize = Math.floor(canvas.width * canvas.height / 500);
   for (let i = 0; i < noiseSize; i++) {
-    if (i % 3 === 0) { // Only draw ~1/3 of potential dots to keep it sparse
+    if (i % 3 === 0) {
       ctx.fillStyle = `rgba(0, 30, 60, ${Math.random() * 0.1})`;
       const x = Math.random() * canvas.width;
       const y = Math.random() * canvas.height;
@@ -539,7 +754,7 @@ function drawBackground() {
     }
   }
 
-  // Grid lines (subtle tactical overlay)
+  // Grid lines
   ctx.strokeStyle = "rgba(0, 255, 64, 0.1)";
   ctx.lineWidth = 1;
 
@@ -555,21 +770,23 @@ function drawBackground() {
   }
   ctx.stroke();
 
-  // Depth rings (depth filter visualization)
+  // Depth rings
   const maxRadius = Math.hypot(canvas.width/2, canvas.height/2);
-  const depthScale = maxRadius / 500; // 500m maps to max radius
+  const depthScale = maxRadius / 500;
 
   for (let depth = 100; depth <= 400; depth += 100) {
-    if (depth >= minDepthM && depth <= maxDepthM) {
+    if (depth <= maxDepthM) {
       const r = depth * depthScale;
       ctx.strokeStyle = `rgba(0, 255, 64, ${0.1 + (depth/1000)})`;
+      ctx.setLineDash([5, 3]);
       ctx.beginPath();
       ctx.arc(canvas.width/2, canvas.height/2, r, 0, Math.PI * 2);
       ctx.stroke();
+      ctx.setLineDash([]);
 
       // Depth label
       ctx.fillStyle = "rgba(0, 255, 64, 0.3)";
-      ctx.font = "10px monospace";
+      ctx.font = "10px 'Share Tech Mono'";
       ctx.textAlign = "center";
       ctx.fillText(`${depth}m`, canvas.width/2 + r - 15, canvas.height/2);
     }
@@ -582,164 +799,160 @@ function drawBackground() {
   ctx.stroke();
 }
 
-// Draw contacts (blips) with trails and authentic radar behavior
+// Draw contacts with trails and authentic radar behavior
 function drawContacts() {
   const centerX = canvas.width / 2;
   const centerY = canvas.height / 2;
 
-  // Sweep bounds for this frame
-  const trailLength = Math.PI / 6; // 30° trail
+  const trailLength = Math.PI / 6;
   let sweepStartAngle = sweepAngle - trailLength;
   let sweepEndAngle = sweepAngle;
 
   contacts.forEach((contact, i) => {
-    // Initialize properties if not present (FIXED: check both properties independently)
+    // Initialize properties if not present
     contact.lastInSweep = (typeof contact.lastInSweep === 'undefined') ? false : contact.lastInSweep;
     contact.undetectedFrames = (typeof contact.undetectedFrames === 'undefined') ? 0 : contact.undetectedFrames;
-    // Initialize depth if not present
     contact.depth = (typeof contact.depth === 'undefined') ? 150 : contact.depth;
 
     // Record current position for trail
     if (!contact.trail) contact.trail = [];
     contact.trail.push({ x: contact.x, y: contact.y });
-    if (contact.trail.length > MAX_BLIP_TRAIL_LENGTH) contact.trail.shift();
+    if (contact.trail.length > MAX_TRAIL_LENGTH) contact.trail.shift();
 
-    // Move contact with realistic speed based on type:
-    // Subsurface (GOBLIN): depth > 50m → slow movement (2-15 knots)
-    // Surface (SKUNK): depth ≤ 50m → medium movement (5-30 knots)
-    
+    // Move contact with realistic speed
     let currentSpeed = contact.speed;
     if (contact.depth > 50) {
-      // Subsurface contacts move slowly (like real submarines)
-      // 0.3-2.0 px/frame = ~6-40 knots
       currentSpeed = Math.max(0.3, Math.min(2.0, contact.speed));
     } else {
-      // Surface contacts move at ship speeds
-      // 0.8-4.0 px/frame = ~16-80 knots
       currentSpeed = Math.max(0.8, Math.min(4.0, contact.speed));
     }
 
     contact.x += Math.cos(contact.angle) * currentSpeed;
     contact.y += Math.sin(contact.angle) * currentSpeed;
 
-    // Wrap around screen edges (toroidal space)
+    // Wrap around screen edges
     if (contact.x < 0) contact.x = canvas.width;
     if (contact.x > canvas.width) contact.x = 0;
     if (contact.y < 0) contact.y = canvas.height;
     if (contact.y > canvas.height) contact.y = 0;
 
     // Draw trail
-    for (let j = 0; j < contact.trail.length; j++) {
-      const pos = contact.trail[j];
-      const alpha = (j / contact.trail.length) * 0.4; // Fade from center to end
+    if (trailsEnabled) {
+      for (let j = 0; j < contact.trail.length; j++) {
+        const pos = contact.trail[j];
+        const alpha = (j / contact.trail.length) * 0.4;
 
-      ctx.fillStyle = i === 0 ? `rgba(0,255,64,${alpha})` : `rgba(255,0,0,${alpha})`;
-      ctx.beginPath();
-      ctx.arc(pos.x, pos.y, 2, 0, Math.PI * 2);
-      ctx.fill();
+        ctx.fillStyle = contact.color.replace(')', `, ${alpha})`);
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
 
-    // Calculate distance from center (in pixels)
+    // Calculate distance from center
     const dx = contact.x - centerX;
     const dy = contact.y - centerY;
     const distPx = Math.sqrt(dx*dx + dy*dy);
-    const distNm = distPx / 5; // Scale: 5px = 1nm
+    const distNm = distPx / 5;
 
-    // Range filter check
-    if (distNm < minRangeNm || distNm > maxRangeNm) {
-      return; // Skip contacts outside range filter
+    // Range filter check (only check minimum range)
+    if (distNm < minRangeNm) {
+      return;
     }
 
     // Depth filter check
-    const contactDepth = contact.depth;
-    if (contactDepth < minDepthM || contactDepth > maxDepthM) {
-      return; // Skip contacts outside depth filter
+    if (contact.depth > maxDepthM) {
+      return;
     }
 
-    // Calculate bearing (angle from center)
+    // Calculate bearing
     let angleFromCenter = Math.atan2(dy, dx);
     if (angleFromCenter < 0) angleFromCenter += Math.PI * 2;
 
-    // Determine if contact is within current sweep arc — FIXED to match actual sweep bounds
+    // Determine if contact is within current sweep arc
     let inSweep = false;
-    // Normalize sweep angles to [0, 2π)
     while (sweepStartAngle < 0) sweepStartAngle += Math.PI * 2;
     while (sweepEndAngle > Math.PI * 2) sweepEndAngle -= Math.PI * 2;
 
     if (sweepStartAngle <= sweepEndAngle) {
-      // Normal arc (no wrap around 0°)
       inSweep = angleFromCenter >= sweepStartAngle && angleFromCenter <= sweepEndAngle;
     } else {
-      // Arc crosses 0° boundary — split into two ranges
       inSweep = angleFromCenter >= sweepStartAngle || angleFromCenter <= sweepEndAngle;
     }
 
-    // Sonar ping only when sweep *first* reaches contact (transition from !inSweep to inSweep)
+    // Sonar ping when sweep first reaches contact
     if (!contact.lastInSweep && inSweep) {
-      // Convert radar bearing to pan value for spatial audio
       const bearingFromNorth = (Math.PI / 2 - angleFromCenter + Math.PI * 2) % (Math.PI * 2);
-
-      // Add ghost blip when contact is first detected
+      
       addGhostBlip(contact, angleFromCenter, distPx);
-
       playSonarPing(bearingFromNorth, currentSpeed);
+
+      // Log contact detection
+      if (contact.type === 'hostile') {
+        addLogEntry(`${contact.id} detected at bearing ${Math.round(angleFromCenter * 180/Math.PI)}°.`, 'hostile');
+      } else {
+        addLogEntry(`${contact.id} detected at bearing ${Math.round(angleFromCenter * 180/Math.PI)}°.`, 'friendly');
+      }
     }
 
-    // Update lastInSweep state
     contact.lastInSweep = inSweep;
 
-    // Handle fade-out if not detected for several sweeps
+    // Handle fade-out
     if (!inSweep) {
       contact.undetectedFrames++;
     } else {
       contact.undetectedFrames = 0;
     }
 
-    // Calculate signal strength based on proximity to sweep center (0=strong, 1=weak)
+    // Calculate signal strength
     const angleDiff1 = Math.abs(angleFromCenter - sweepAngle);
     const angleDiff2 = Math.abs(angleFromCenter - (sweepAngle + Math.PI * 2));
     const angleDiff3 = Math.abs((angleFromCenter + Math.PI * 2) - sweepAngle);
     const minAngleDiff = Math.min(angleDiff1, angleDiff2, angleDiff3);
-    // Normalize: 0 at center of sweep, 1 at edges
     const signalStrength = Math.min(minAngleDiff / (trailLength/2), 1);
 
-    // Fade out if undetected for too long
+    // Fade out if undetected
     let contactAlpha = 1;
     if (contact.undetectedFrames > 5) {
       contactAlpha = Math.max(0, 1 - (contact.undetectedFrames - 5) * 0.2);
     }
 
-    // Draw contact blip with signal strength and fade
+    // Draw contact blip
     ctx.shadowBlur = inSweep ? 8 : 0;
-    ctx.shadowColor = i === 0 ? "#0f0" : "#f00";
+    ctx.shadowColor = contact.color;
 
-    const baseColor = i === 0 ? "rgba(0,255,64," : "rgba(255,0,0,";
-    // Signal strength affects glow: stronger when closer to sweep center
-    ctx.fillStyle = baseColor + (contactAlpha * (1 - signalStrength * 0.3)) + ")";
+    const baseColor = contact.color.replace(')', `, ${contactAlpha * (1 - signalStrength * 0.3)})`);
+    ctx.fillStyle = baseColor;
 
-    // Contact size varies slightly with signal strength
     const blipSize = inSweep ? 4 : Math.max(2, 3 - signalStrength);
 
     ctx.beginPath();
     ctx.arc(contact.x, contact.y, blipSize, 0, Math.PI * 2);
     ctx.fill();
 
-    // Label (distance and bearing) — only show when under sweep or friendly
-    if (inSweep || i === 0) {
-      ctx.fillStyle = `rgba(207, 255, 207, ${contactAlpha})`;
-      ctx.font = "10px monospace";
+    // Label
+    if (inSweep) {
+      ctx.fillStyle = `rgba(255, 255, 255, ${contactAlpha})`;
+      ctx.font = "11px 'Share Tech Mono'";
       const rangeNm = Math.round(distPx / 5);
       const bearingDeg = Math.round(angleFromCenter * (180/Math.PI));
 
-      // Add depth info to label
-      const depthInfo = contactDepth > 0 ? ` D:${contactDepth}m` : '';
-      ctx.fillText(`BLIP-${i+1} R:${rangeNm}nm B:${bearingDeg}${depthInfo}`, contact.x + 10, contact.y - 8);
+      const depthInfo = contact.depth > 0 ? ` D:${contact.depth}m` : '';
+      ctx.fillText(`${contact.id} R:${rangeNm}nm B:${bearingDeg}${depthInfo}`, contact.x + 10, contact.y - 8);
+    }
+
+    // Update latest contact info
+    if (inSweep) {
+      document.getElementById('latestContactId').textContent = contact.id;
+      document.getElementById('latestBearing').textContent = `${Math.round(angleFromCenter * 180/Math.PI)}°`;
+      document.getElementById('latestRange').textContent = `${rangeNm} nm`;
+      document.getElementById('latestDepth').textContent = `${contact.depth} m`;
     }
 
     ctx.shadowBlur = 0;
   });
 
-  // Draw ghost blips (delayed echoes) — CLEANED UP TEXT!
+  // Draw ghost blips
   for (let i = ghostBlips.length - 1; i >= 0; i--) {
     const ghost = ghostBlips[i];
     ghost.age++;
@@ -750,52 +963,43 @@ function drawContacts() {
       continue;
     }
 
-    // Draw ghost blip at previous position — BRIGHTER!
-    ctx.fillStyle = `rgba(255, 255, 255, ${ghost.opacity})`; // Was *0.4
+    ctx.fillStyle = `rgba(255, 255, 255, ${ghost.opacity})`;
     ctx.beginPath();
-    ctx.arc(ghost.x, ghost.y, 4, 0, Math.PI * 2); // Larger size: was 3
+    ctx.arc(ghost.x, ghost.y, 4, 0, Math.PI * 2);
     ctx.fill();
 
-    // Draw line connecting to actual position — THICKER!
-    ctx.strokeStyle = `rgba(255, 255, 255, ${ghost.opacity})`; // Was *0.2
-    ctx.lineWidth = 2; // Was 1
+    ctx.strokeStyle = `rgba(255, 255, 255, ${ghost.opacity})`;
+    ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(ghost.x, ghost.y);
     ctx.lineTo(ghost.ghostX, ghost.ghostY);
     ctx.stroke();
-
-    // REMOVED: Ghost text labels to prevent visual "glitching"
-    // Ghost echoes are visual aids — no need for detailed labels that clutter the display
   }
 }
 
-// Draw radar sweep — single wedge with gradient and sharp leading edge
+// Draw radar sweep
 function drawRadarSweep() {
   const centerX = canvas.width / 2;
   const centerY = canvas.height / 2;
-  const radius = Math.hypot(centerX, centerY); // Half-diagonal → reaches all corners
+  const radius = Math.hypot(centerX, centerY);
 
   ctx.globalCompositeOperation = 'lighter';
 
-  // Single sweep wedge — shorter trail for sharper look
-  const trailLength = Math.PI / 6; // 30° trail (was 60°)
+  const trailLength = Math.PI / 6;
   let startAngle = sweepAngle - trailLength;
   const endAngle = sweepAngle;
 
   if (startAngle < 0) {
-    // Arc crosses top — draw in two parts
     ctx.beginPath();
     ctx.moveTo(centerX, centerY);
     ctx.arc(centerX, centerY, radius, startAngle + Math.PI * 2, Math.PI * 2);
     ctx.arc(centerX, centerY, radius, 0, endAngle);
   } else if (endAngle > Math.PI * 2) {
-    // Arc crosses bottom — draw in two parts
     ctx.beginPath();
     ctx.moveTo(centerX, centerY);
     ctx.arc(centerX, centerY, radius, startAngle, Math.PI * 2);
     ctx.arc(centerX, centerY, radius, 0, endAngle - Math.PI * 2);
   } else {
-    // Normal arc (no wrap)
     ctx.beginPath();
     ctx.moveTo(centerX, centerY);
     ctx.arc(centerX, centerY, radius, startAngle, endAngle);
@@ -803,44 +1007,41 @@ function drawRadarSweep() {
 
   ctx.closePath();
 
-  // Radial gradient for glow falloff
   const grad = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
-  grad.addColorStop(0, 'rgba(0, 255, 64, 0)');     // transparent at center
-  grad.addColorStop(0.3, 'rgba(0, 255, 64, 0.15)'); // mid-fade
-  grad.addColorStop(1, 'rgba(0, 255, 64, 0.25)');   // faint edge
+  grad.addColorStop(0, 'rgba(0, 255, 64, 0)');
+  grad.addColorStop(0.3, 'rgba(0, 255, 64, 0.15)');
+  grad.addColorStop(1, 'rgba(0, 255, 64, 0.25)');
 
   ctx.fillStyle = grad;
   ctx.fill();
 
-  // Bright leading edge line with optimized glow
+  // Bright leading edge line
   ctx.beginPath();
   ctx.moveTo(centerX, centerY);
   ctx.lineTo(
     centerX + Math.cos(sweepAngle) * radius,
     centerY + Math.sin(sweepAngle) * radius
   );
-  ctx.strokeStyle = 'rgba(0, 255, 64, 1.0)'; // Brighter line (was 0.9)
+  ctx.strokeStyle = 'rgba(0, 255, 64, 1.0)';
   ctx.lineWidth = 2;
-  ctx.shadowBlur = 8; // Reduced from 12 for tighter glow
+  ctx.shadowBlur = 8;
   ctx.shadowColor = '#0f0';
   ctx.stroke();
   ctx.shadowBlur = 0;
 
   ctx.globalCompositeOperation = 'source-over';
 
-  // Update sweep angle for next frame
+  // Update sweep angle
   sweepAngle += SWEEP_SPEED;
   
-  // Play radar bleep when sweep completes a full revolution (~5.3 seconds)
   if (sweepAngle >= Math.PI * 2) {
     sweepAngle -= Math.PI * 2;
-    playRadarBleep(); // Add the "bleep" sound every revolution
+    playRadarBleep();
   }
 
-  // Draw sonar waveforms if active
+  // Draw sonar waveforms
   for (let i = sonarWaves.length - 1; i >= 0; i--) {
     const wave = sonarWaves[i];
-    // Expand and fade
     wave.radius += 3;
     wave.opacity -= 0.02;
 
@@ -855,18 +1056,16 @@ function drawRadarSweep() {
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Add "ping" text at interval
     if (Math.floor(Date.now() / 100) % 3 === 0) {
       ctx.fillStyle = `rgba(255, 255, 255, ${wave.opacity})`;
-      ctx.font = "bold 14px monospace";
+      ctx.font = "bold 14px 'Share Tech Mono'";
       ctx.fillText("PING!", wave.x - 18, wave.y + 4);
     }
   }
 
-  // Draw echo rings from contact detections
+  // Draw echo rings
   for (let i = echoRings.length - 1; i >= 0; i--) {
     const ring = echoRings[i];
-    // Expand and fade
     ring.radius += 8;
     ring.opacity -= 0.05;
 
@@ -881,11 +1080,10 @@ function drawRadarSweep() {
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    // Add echo indicator text
     if (Math.floor(Date.now() / 50) % 4 === 0) {
       ctx.fillStyle = `rgba(255, 255, 255, ${ring.opacity})`;
-      ctx.font = "10px monospace";
-      const rangeNm = Math.round(ring.radius / 8); // Approximate scale
+      ctx.font = "10px 'Share Tech Mono'";
+      const rangeNm = Math.round(ring.radius / 8);
       ctx.fillText(`ECHO ${rangeNm}nm`, ring.x - 15, ring.y + 3);
     }
   }
@@ -906,27 +1104,71 @@ function drawRadarSweep() {
   ctx.lineTo(centerX, centerY + 30);
   ctx.stroke();
 
-  // Range rings with labels (nautical miles)
+  // Range rings
   for (let r = 150; r < radius; r += 150) {
-    const nm = Math.round(r / 5); // Scale: 5px = 1nm
+    const nm = Math.round(r / 5);
 
     ctx.strokeStyle = "rgba(0, 255, 64, 0.15)";
     ctx.beginPath();
     ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
     ctx.stroke();
 
-    // Label on the ring
     ctx.fillStyle = "#afa";
-    ctx.font = "bold 12px monospace";
+    ctx.font = "bold 12px 'Share Tech Mono'";
     ctx.textAlign = "center";
     ctx.fillText(`${nm}nm`, centerX + r - 15, centerY - 3);
   }
 
-  // Direction indicator (N)
+  // Direction indicators
   ctx.fillStyle = "#afa";
-  ctx.font = "bold 14px monospace";
+  ctx.font = "bold 14px 'Share Tech Mono'";
+  
+  const radiusOffset = radius + 20;
+  ctx.textAlign = "center";
+  ctx.fillText("N", centerX, centerY - radiusOffset);
+  ctx.fillText("S", centerX, centerY + radiusOffset);
+  ctx.textAlign = "right";
+  ctx.fillText("W", centerX - radiusOffset, centerY + 4);
   ctx.textAlign = "left";
-  ctx.fillText("N", centerX + 5, centerY - radius + 15);
+  ctx.fillText("E", centerX + radiusOffset, centerY + 4);
+}
+
+// Update ship status readouts
+function updateShipStatus() {
+  // Randomize for demo purposes (real subs would use actual sensor data)
+  const depth = Math.floor(Math.random() * 300) + 150;
+  const speed = (Math.random() * 8 + 2).toFixed(1);
+  const heading = Math.floor(Math.random() * 360);
+  
+  document.getElementById('depthReadout').textContent = `${depth}m`;
+  document.getElementById('speedReadout').textContent = `${speed} kts`;
+  document.getElementById('headingReadout').textContent = `${heading.toString().padStart(3, '0')}°`;
+}
+
+// Update clock
+function updateClock() {
+  const now = new Date();
+  const utcTime = `${String(now.getUTCHours()).padStart(2, '0')}:${String(now.getUTCMinutes()).padStart(2, '0')}:${String(now.getUTCSeconds()).padStart(2, '0')}Z`;
+  
+  document.getElementById('utcClock').textContent = utcTime;
+
+  // Update mission timer
+  const elapsed = performance.now() - missionStartTime;
+  const hours = Math.floor(elapsed / 3600000);
+  const minutes = Math.floor((elapsed % 3600000) / 60000);
+  const seconds = Math.floor((elapsed % 60000) / 1000);
+  
+  document.getElementById('missionTimer').textContent = 
+    `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+// Update acoustic environment data
+function updateAcousticData() {
+  const noiseFloor = -45 + Math.floor(Math.random() * 10);
+  const waterTemp = 18 + Math.floor(Math.random() * 4);
+  
+  document.getElementById('noiseFloor').textContent = `${noiseFloor} dB`;
+  document.getElementById('waterTemp').textContent = `${waterTemp}°C at 200m`;
 }
 
 // Main render loop
@@ -936,15 +1178,24 @@ function animate() {
 
   if (now - lastTime >= 1000) {
     fps = Math.round((frameCount * 1000) / (now - lastTime));
-    document.getElementById('fpsDisplay').innerText = fps;
-    // Update contact count
-    document.getElementById('contactCount').innerText = contacts.length;
+    document.getElementById('fpsDisplay').textContent = fps;
+    document.getElementById('contactCount').textContent = contacts.length;
+    
+    updateShipStatus();
+    updateAcousticData();
+    
     frameCount = 0;
     lastTime = now;
   }
 
-  // Clear canvas with slight fade for motion blur effect
-  ctx.fillStyle = "rgba(10, 26, 42, 0.3)"; // Very slight trail
+  // Update clock every second
+  if (now - lastUtcUpdate >= 1000) {
+    updateClock();
+    lastUtcUpdate = now;
+  }
+
+  // Clear canvas with slight fade for motion blur
+  ctx.fillStyle = "rgba(10, 26, 42, 0.3)";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   drawBackground();
@@ -954,121 +1205,103 @@ function animate() {
   requestAnimationFrame(animate);
 }
 
-// Click to add new contacts (e.g., detected by sonar)
+// Interactive controls
 canvas.addEventListener('click', (e) => {
   const rect = canvas.getBoundingClientRect();
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
 
-  // Create a random contact with realistic speed based on depth type:
-  // Subsurface: slow movement (0.3-2.0 px/frame)
-  // Surface: medium movement (0.8-4.0 px/frame)
   const angle = Math.random() * Math.PI * 2;
-  const depth = Math.floor(Math.random() * 400) + 50; // 50-450m
+  const depth = Math.floor(Math.random() * 400) + 50;
 
   let speed;
   if (depth > 50) {
-    // Subsurface contacts move slowly
-    speed = 0.3 + Math.random() * 1.7; // 0.3-2.0 px/frame
+    speed = 0.3 + Math.random() * 1.7;
   } else {
-    // Surface contacts move at ship speeds
-    speed = 0.8 + Math.random() * 3.2; // 0.8-4.0 px/frame
+    speed = 0.8 + Math.random() * 3.2;
   }
+
+  const isHostile = Math.random() > 0.6; // 40% chance of hostile
+  const contactType = isHostile ? 'hostile' : 'friendly';
+  const color = isHostile ? '#ff2020' : '#00ff41';
+  const id = isHostile ? `SKUNK-${contacts.length + 1}` : `GOBLIN-${contacts.length + 1}`;
 
   contacts.push({
-    x,
-    y,
-    speed: speed, // Realistic variable speed based on type
+    x, y,
+    speed,
     angle,
-    depth
+    depth,
+    type: contactType,
+    color,
+    id,
+    trail: [],
+    lastInSweep: false,
+    undetectedFrames: 0
   });
+
+  addLogEntry(`New contact ${id} acquired at bearing ${Math.round(angle * 180/Math.PI)}°.`, isHostile ? 'hostile' : 'friendly');
 });
 
-// Sonar button handler
-document.getElementById('sonarBtn').addEventListener('click', () => {
-  playSonarPing(); // Random direction for manual ping
-  // Flash the screen slightly to simulate active sonar pulse
-  const flash = document.createElement('div');
-  flash.style.position = 'fixed';
-  flash.style.top = '0';
-  flash.style.left = '0';
-  flash.style.width = '100%';
-  flash.style.height = '100%';
-  flash.style.backgroundColor = 'rgba(207, 255, 207, 0.1)';
-  flash.style.pointerEvents = 'none';
-  flash.style.transition = 'opacity 0.3s';
-  document.body.appendChild(flash);
+// LED Toggle Functions
+function toggleSonar() {
+  sonarActive = !sonarActive;
+  document.getElementById('sonarLed').classList.toggle('active', sonarActive);
+  
+  if (sonarActive) {
+    addLogEntry('Sonar system active.', 'system');
+  } else {
+    addLogEntry('Sonar system inactive.', 'system');
+  }
+}
 
-  setTimeout(() => {
-    flash.style.opacity = '0';
-    setTimeout(() => {
-      document.body.removeChild(flash);
-    }, 300);
-  }, 50);
-});
-
-// Range filter slider handler
-const rangeSlider = document.getElementById('rangeFilter');
-const minRangeDisplay = document.getElementById('minRangeDisplay');
-const maxRangeDisplay = document.getElementById('maxRangeDisplay');
-
-rangeSlider.addEventListener('input', () => {
-  const value = parseInt(rangeSlider.value);
-  minRangeNm = value;
-  maxRangeNm = value * 6; // Max range is 6x the min (50-300nm at default)
-
-  minRangeDisplay.textContent = minRangeNm;
-  maxRangeDisplay.textContent = maxRangeNm;
-});
-
-// Depth filter slider handler
-const depthSlider = document.getElementById('depthFilter');
-const minDepthDisplay = document.getElementById('minDepthDisplay');
-const maxDepthDisplay = document.getElementById('maxDepthDisplay');
-
-depthSlider.addEventListener('input', () => {
-  const value = parseInt(depthSlider.value);
-  minDepthM = 0;
-  maxDepthM = value; // Filter shows contacts shallower than this depth
-
-  minDepthDisplay.textContent = minDepthM;
-  maxDepthDisplay.textContent = maxDepthM;
-});
-
-// Ghost echo toggle button — ENHANCED VISUAL FEEDBACK!
-const ghostBtnContainer = document.getElementById('toggleGhostBtn');
-
-ghostBtnContainer.addEventListener('click', () => {
+function toggleGhostEchoes() {
   ghostEchoesEnabled = !ghostEchoesEnabled;
-
-  // Update button styling
-  const toggleBtn = ghostBtnContainer.querySelector('.toggle-btn');
-  if (ghostEchoesEnabled) {
-    toggleBtn.textContent = 'GHOST: ON';
-    toggleBtn.classList.add('active');
-  } else {
-    toggleBtn.textContent = 'GHOST: OFF';
-    toggleBtn.classList.remove('active');
-  }
-
+  document.getElementById('ghostLed').classList.toggle('active', ghostEchoesEnabled);
   if (!ghostEchoesEnabled) {
-    // Clear existing ghosts and show confirmation
     ghostBlips = [];
-    console.log("Ghost echoes OFF — cleared");
-  } else {
-    // Spawn a test ghost to prove it's working!
-    const testContact = { x: canvas.width/2 + 100, y: canvas.height/2, speed: 0.75, angle: Math.PI/4 };
-    addGhostBlip(testContact, Math.PI/4, Math.hypot(100, 0));
-    console.log("Ghost echoes ON — test ghost spawned");
   }
+  
+  addLogEntry(`Ghost echoes ${ghostEchoesEnabled ? 'enabled' : 'disabled'}.`, 'system');
+}
 
-  // Visual button feedback
-  setTimeout(() => {
-    toggleBtn.style.boxShadow = ghostEchoesEnabled ? "inset 0 0 25px rgba(207,255,207,0.4), 0 0 15px rgba(207,255,207,0.4)" : "inset 0 0 25px rgba(255,0,0,0.4), 0 0 15px rgba(255,0,0,0.4)";
-    setTimeout(() => {
-      toggleBtn.style.boxShadow = ghostEchoesEnabled ? "inset 0 0 15px rgba(207,255,207,0.3), 0 0 10px rgba(207,255,207,0.3)" : "none";
-    }, 100);
-  }, 100);
+function toggleTrails() {
+  trailsEnabled = !trailsEnabled;
+  document.getElementById('trailLed').classList.toggle('active', trailsEnabled);
+  
+  addLogEntry(`Contact trails ${trailsEnabled ? 'enabled' : 'disabled'}.`, 'system');
+}
+
+// LED Event Listeners
+document.querySelector('#sonarLed + span').addEventListener('click', toggleSonar);
+document.querySelector('#ghostLed + span').addEventListener('click', toggleGhostEchoes);
+document.querySelector('#trailLed + span').addEventListener('click', toggleTrails);
+
+// Range slider handler
+const rangeSlider = document.getElementById('rangeSlider');
+rangeSlider.addEventListener('input', () => {
+  minRangeNm = parseInt(rangeSlider.value);
+});
+
+// Depth slider handler
+const depthSlider = document.getElementById('depthSlider');
+depthSlider.addEventListener('input', () => {
+  maxDepthM = parseInt(depthSlider.value);
+});
+
+// Fire control button handler
+document.getElementById('fireControlBtn').addEventListener('click', () => {
+  playFireControl();
+  
+  const btn = document.getElementById('fireControlBtn');
+  if (btn.textContent.includes('ARMED')) {
+    btn.textContent = 'FIRE CONTROL — SAFE';
+    btn.style.color = '#00ff41';
+    addLogEntry('Fire control safe. Torpedoes disarmed.', 'system');
+  } else {
+    btn.textContent = 'FIRE CONTROL — ARMED';
+    btn.style.color = '#ff2020';
+    addLogEntry('Fire control armed. Ready to engage targets.', 'hostile');
+  }
 });
 
 // Start the animation
