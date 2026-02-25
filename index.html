@@ -240,7 +240,7 @@
       border: 1px solid var(--phosphor-dim);
     }
 
-    /* Torpedo Tube Rack */
+    /* Torpedo Tube Rack - Fixed Interactive Buttons */
     .torpedo-rack {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -248,29 +248,46 @@
       margin-bottom: 15px;
     }
 
-    .tube-status {
-      background: rgba(0, 30, 0, 0.8);
-      border: 1px solid var(--phosphor-dim);
-      padding: 8px;
-      font-size: 12px;
-      text-align: center;
-      position: relative;
+    .tube-btn {
+      background: linear-gradient(135deg, #0d1a0d 0%, #0a140a 50%, #081208 100%);
+      border: 2px inset var(--phosphor-dim);
+      color: var(--phosphor-green);
+      padding: 6px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 11px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      box-shadow: inset 0 0 8px rgba(0,0,0,0.9);
+      transition: all 0.1s;
     }
 
-    .tube-status.ready {
-      background: rgba(0, 50, 0, 0.6);
+    .tube-btn:hover {
+      background: linear-gradient(135deg, #1a2a1a 0%, #0d1a0d 50%, #0b160b 100%);
+      border-color: var(--phosphor-green);
+      box-shadow: inset 0 0 12px rgba(0,0,0,0.9), 0 0 4px var(--phosphor-dim);
+    }
+
+    .tube-btn:active {
+      transform: translateY(1px);
+      border: 2px outset var(--phosphor-dim);
+      background: linear-gradient(135deg, #081208 0%, #061006 50%, #040e04 100%);
+    }
+
+    .tube-btn.ready {
+      background: linear-gradient(135deg, #0f2a0f 0%, #0d1a0d 50%, #0b180b 100%);
       border-color: var(--phosphor-green);
     }
 
-    .tube-status.armed {
-      background: rgba(50, 0, 0, 0.4);
+    .tube-btn.armed {
+      background: linear-gradient(135deg, #2a0f0f 0%, #1a0d0d 50%, #160b0b 100%);
       border-color: var(--red-alert);
-      animation: pulse 1s infinite;
+      color: var(--red-alert);
     }
 
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.7; }
+    .tube-btn span {
+      display: block;
+      margin-top: 4px;
     }
 
     /* Fire Control Button */
@@ -312,6 +329,11 @@
       align-items: center;
       gap: 6px;
       font-size: 13px;
+      cursor: pointer;
+    }
+
+    .led-label {
+      user-select: none;
     }
 
     .led {
@@ -420,17 +442,17 @@
         <input type="range" id="depthSlider" min="0" max="500" value="300" step="10">
       </div>
 
-      <!-- Torpedo Tube Rack -->
+      <!-- Torpedo Tube Rack - Fixed Interactive Buttons -->
       <h3 class="panel-label" style="font-size: 12px;">Torpedo Control</h3>
-      <div class="torpedo-rack" id="torpedoRack">
-        <div class="tube-status ready">TUBE 1<br><span>FRIENDLY</span></div>
-        <div class="tube-status ready">TUBE 2<br><span>ARMED</span></div>
-        <div class="tube-status">TUBE 3<br><span>EMPTY</span></div>
-        <div class="tube-status ready">TUBE 4<br><span>FRIENDLY</span></div>
-        <div class="tube-status armed">TUBE 5<br><span>HOSTILE</span></div>
-        <div class="tube-status">TUBE 6<br><span>EMPTY</span></div>
-        <div class="tube-status ready">TUBE 7<br><span>FRIENDLY</span></div>
-        <div class="tube-status armed">TUBE 8<br><span>HOSTILE</span></div>
+      <div class="torpedo-rack">
+        <button type="button" class="tube-btn ready" data-tube="1"><span>TUBE 1<br>FRIENDLY</span></button>
+        <button type="button" class="tube-btn armed" data-tube="2"><span>TUBE 2<br>ARMED</span></button>
+        <button type="button" class="tube-btn" data-tube="3"><span>TUBE 3<br>EMPTY</span></button>
+        <button type="button" class="tube-btn ready" data-tube="4"><span>TUBE 4<br>FRIENDLY</span></button>
+        <button type="button" class="tube-btn armed" data-tube="5"><span>TUBE 5<br>HOSTILE</span></button>
+        <button type="button" class="tube-btn" data-tube="6"><span>TUBE 6<br>EMPTY</span></button>
+        <button type="button" class="tube-btn ready" data-tube="7"><span>TUBE 7<br>FRIENDLY</span></button>
+        <button type="button" class="tube-btn armed" data-tube="8"><span>TUBE 8<br>HOSTILE</span></button>
       </div>
 
       <!-- Fire Control Button -->
@@ -464,17 +486,17 @@
       
       <!-- LED Indicators -->
       <div class="led-container">
-        <div class="led-group">
+        <div class="led-group" id="sonarToggle">
           <div id="sonarLed" class="led active"></div>
-          <span>SONAR ACTIVE</span>
+          <span class="led-label">SONAR ACTIVE</span>
         </div>
-        <div class="led-group">
+        <div class="led-group" id="ghostToggle">
           <div id="ghostLed" class="led active"></div>
-          <span>GHOST ECHOES</span>
+          <span class="led-label">GHOST ECHOES</span>
         </div>
-        <div class="led-group">
+        <div class="led-group" id="trailToggle">
           <div id="trailLed" class="led active"></div>
-          <span>TRAILS</span>
+          <span class="led-label">TRAILS</span>
         </div>
       </div>
 
@@ -578,7 +600,7 @@ let sonarActive = true;
 let ghostEchoesEnabled = true;
 let trailsEnabled = true;
 
-// Audio context for sonar
+// Audio context for sonar - Lazy initialization
 let audioCtx = null;
 
 // Timer state
@@ -589,108 +611,136 @@ let lastUtcUpdate = performance.now();
 const logContainer = document.getElementById('contactLog');
 
 function addLogEntry(message, type = 'system') {
-  const now = new Date();
-  const utcTime = `${String(now.getUTCHours()).padStart(2, '0')}${String(now.getUTCMinutes()).padStart(2, '0')}Z`;
-  
-  const entry = document.createElement('div');
-  entry.className = 'log-entry';
-  
-  let logClass = 'log-system';
-  if (type === 'friendly') logClass = 'log-friendly';
-  if (type === 'hostile') logClass = 'log-hostile';
-  
-  entry.innerHTML = `<span class="log-time">${utcTime}</span><span class="${logClass}">${message}</span>`;
-  
-  // Insert at top
-  logContainer.insertBefore(entry, logContainer.firstChild);
-  
-  // Keep only last 30 entries
-  while (logContainer.children.length > 30) {
-    logContainer.removeChild(logContainer.lastChild);
+  try {
+    const now = new Date();
+    const utcTime = `${String(now.getUTCHours()).padStart(2, '0')}${String(now.getUTCMinutes()).padStart(2, '0')}Z`;
+    
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    
+    let logClass = 'log-system';
+    if (type === 'friendly') logClass = 'log-friendly';
+    if (type === 'hostile') logClass = 'log-hostile';
+    
+    entry.innerHTML = `<span class="log-time">${utcTime}</span><span class="${logClass}">${message}</span>`;
+    
+    // Insert at top
+    logContainer.insertBefore(entry, logContainer.firstChild);
+    
+    // Keep only last 30 entries
+    while (logContainer.children.length > 30) {
+      logContainer.removeChild(logContainer.lastChild);
+    }
+  } catch (e) {
+    console.error('Error adding log entry:', e);
   }
 }
 
 function initAudio() {
-  if (!audioCtx) {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    audioCtx = new AudioContext();
-  }
-  if (audioCtx.state === 'suspended') {
-    audioCtx.resume();
+  try {
+    if (!audioCtx) {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AudioContext();
+    }
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+    return true;
+  } catch (e) {
+    console.error('Audio initialization failed:', e);
+    return false;
   }
 }
 
-// Play sonar ping
+// Play sonar ping with error handling
 function playSonarPing(bearingAngle, contactSpeed) {
-  initAudio();
-  
-  const osc = audioCtx.createOscillator();
-  const gainNode = audioCtx.createGain();
-  
-  osc.type = 'sine';
-  osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
-  gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
-  gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
-  
-  // Stereo panning based on bearing
-  const panner = audioCtx.createStereoPanner();
-  panner.pan.value = Math.sin(bearingAngle);
-  
-  osc.connect(panner);
-  panner.connect(gainNode);
-  gainNode.connect(audioCtx.destination);
-  
-  osc.start();
-  osc.stop(audioCtx.currentTime + 0.1);
+  try {
+    if (!initAudio()) {
+      return; // Audio context not available
+    }
+    
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
+    gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+    
+    // Stereo panning based on bearing
+    const panner = audioCtx.createStereoPanner();
+    panner.pan.value = Math.sin(bearingAngle);
+    
+    osc.connect(panner);
+    panner.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.1);
 
-  // Visual ping effect
-  createSonarEchoRing(sweepAngle);
+    // Visual ping effect
+    createSonarEchoRing(sweepAngle);
+  } catch (e) {
+    console.error('Error playing sonar ping:', e);
+  }
 }
 
-// Play radar bleep
+// Play radar bleep with error handling
 function playRadarBleep() {
-  if (!audioCtx) return;
-  
-  const osc = audioCtx.createOscillator();
-  const gainNode = audioCtx.createGain();
-  
-  osc.type = 'sine';
-  osc.frequency.setValueAtTime(220, audioCtx.currentTime);
-  osc.frequency.exponentialRampToValueAtTime(60, audioCtx.currentTime + 0.3);
-  
-  const panner = audioCtx.createStereoPanner();
-  panner.pan.value = Math.random() * 2 - 1;
-  
-  osc.connect(panner);
-  panner.connect(gainNode);
-  gainNode.connect(audioCtx.destination);
-  
-  gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
-  gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
-  
-  osc.start();
-  osc.stop(audioCtx.currentTime + 0.6);
+  try {
+    if (!initAudio()) {
+      return;
+    }
+    
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(60, audioCtx.currentTime + 0.3);
+    
+    const panner = audioCtx.createStereoPanner();
+    panner.pan.value = Math.random() * 2 - 1;
+    
+    osc.connect(panner);
+    panner.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    
+    gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+    
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.6);
+  } catch (e) {
+    console.error('Error playing radar bleep:', e);
+  }
 }
 
-// Play fire control sound
+// Play fire control sound with error handling
 function playFireControl() {
-  if (!audioCtx) return;
-  
-  const osc = audioCtx.createOscillator();
-  const gainNode = audioCtx.createGain();
-  
-  osc.type = 'sawtooth';
-  osc.frequency.setValueAtTime(800, audioCtx.currentTime);
-  osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.2);
-  
-  gainNode.gain.setValueAtTime(0.4, audioCtx.currentTime);
-  gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
-  
-  osc.connect(gainNode);
-  gainNode.connect(audioCtx.destination);
-  
-  osc.start();
-  osc.stop(audioCtx.currentTime + 0.35);
+  try {
+    if (!initAudio()) {
+      return;
+    }
+    
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.2);
+    
+    gainNode.gain.setValueAtTime(0.4, audioCtx.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
+    
+    osc.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.35);
+  } catch (e) {
+    console.error('Error playing fire control sound:', e);
+  }
 }
 
 let sonarWaves = [];
@@ -698,548 +748,588 @@ let echoRings = [];
 let ghostBlips = [];
 
 function createSonarEchoRing(sweepAngle) {
-  const centerX = canvas.width / 2;
-  const centerY = canvas.height / 2;
-  
-  echoRings.push({
-    x: centerX + Math.cos(sweepAngle) * (canvas.width/1.8),
-    y: centerY + Math.sin(sweepAngle) * (canvas.width/1.8),
-    radius: 5,
-    opacity: 0.6,
-    maxRadius: canvas.width / 1.2
-  });
+  try {
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    
+    echoRings.push({
+      x: centerX + Math.cos(sweepAngle) * (canvas.width/1.8),
+      y: centerY + Math.sin(sweepAngle) * (canvas.width/1.8),
+      radius: 5,
+      opacity: 0.6,
+      maxRadius: canvas.width / 1.2
+    });
+  } catch (e) {
+    console.error('Error creating sonar echo ring:', e);
+  }
 }
 
 function addGhostBlip(contact, angleFromCenter, dist) {
   if (!ghostEchoesEnabled) return;
 
-  const centerX = canvas.width / 2;
-  const centerY = canvas.height / 2;
+  try {
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
 
-  const ghostDist = Math.max(50, dist - (contact.speed * 3));
-  const ghostX = centerX + Math.cos(angleFromCenter) * ghostDist;
-  const ghostY = centerY + Math.sin(angleFromCenter) * ghostDist;
+    const ghostDist = Math.max(50, dist - (contact.speed * 3));
+    const ghostX = centerX + Math.cos(angleFromCenter) * ghostDist;
+    const ghostY = centerY + Math.sin(angleFromCenter) * ghostDist;
 
-  ghostBlips.push({
-    x: contact.x,
-    y: contact.y,
-    ghostX: ghostX,
-    ghostY: ghostY,
-    opacity: 0.8,
-    age: 0,
-    maxAge: 15
-  });
+    ghostBlips.push({
+      x: contact.x,
+      y: contact.y,
+      ghostX: ghostX,
+      ghostY: ghostY,
+      opacity: 0.8,
+      age: 0,
+      maxAge: 15
+    });
+  } catch (e) {
+    console.error('Error adding ghost blip:', e);
+  }
 }
 
 // Draw ocean background with depth illusion
 function drawBackground() {
-  const bgGradient = ctx.createRadialGradient(
-    canvas.width/2, canvas.height/2, 0,
-    canvas.width/2, canvas.height/2, Math.max(canvas.width, canvas.height)/1.5
-  );
-  bgGradient.addColorStop(0, "#0a1a2a");
-  bgGradient.addColorStop(1, "#000000");
+  try {
+    const bgGradient = ctx.createRadialGradient(
+      canvas.width/2, canvas.height/2, 0,
+      canvas.width/2, canvas.height/2, Math.max(canvas.width, canvas.height)/1.5
+    );
+    bgGradient.addColorStop(0, "#0a1a2a");
+    bgGradient.addColorStop(1, "#000000");
 
-  ctx.fillStyle = bgGradient;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = bgGradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Subtle seabed noise
-  const noiseSize = Math.floor(canvas.width * canvas.height / 500);
-  for (let i = 0; i < noiseSize; i++) {
-    if (i % 3 === 0) {
-      ctx.fillStyle = `rgba(0, 30, 60, ${Math.random() * 0.1})`;
-      const x = Math.random() * canvas.width;
-      const y = Math.random() * canvas.height;
-      ctx.fillRect(x, y, 2, 2);
+    // Subtle seabed noise
+    const noiseSize = Math.floor(canvas.width * canvas.height / 500);
+    for (let i = 0; i < noiseSize; i++) {
+      if (i % 3 === 0) {
+        ctx.fillStyle = `rgba(0, 30, 60, ${Math.random() * 0.1})`;
+        const x = Math.random() * canvas.width;
+        const y = Math.random() * canvas.height;
+        ctx.fillRect(x, y, 2, 2);
+      }
     }
-  }
 
-  // Grid lines
-  ctx.strokeStyle = "rgba(0, 255, 64, 0.1)";
-  ctx.lineWidth = 1;
+    // Grid lines
+    ctx.strokeStyle = "rgba(0, 255, 64, 0.1)";
+    ctx.lineWidth = 1;
 
-  const gridSize = 100;
-  ctx.beginPath();
-  for (let x = 0; x <= canvas.width; x += gridSize) {
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, canvas.height);
-  }
-  for (let y = 0; y <= canvas.height; y += gridSize) {
-    ctx.moveTo(0, y);
-    ctx.lineTo(canvas.width, y);
-  }
-  ctx.stroke();
-
-  // Depth rings
-  const maxRadius = Math.hypot(canvas.width/2, canvas.height/2);
-  const depthScale = maxRadius / 500;
-
-  for (let depth = 100; depth <= 400; depth += 100) {
-    if (depth <= maxDepthM) {
-      const r = depth * depthScale;
-      ctx.strokeStyle = `rgba(0, 255, 64, ${0.1 + (depth/1000)})`;
-      ctx.setLineDash([5, 3]);
-      ctx.beginPath();
-      ctx.arc(canvas.width/2, canvas.height/2, r, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      // Depth label
-      ctx.fillStyle = "rgba(0, 255, 64, 0.3)";
-      ctx.font = "10px 'Share Tech Mono'";
-      ctx.textAlign = "center";
-      ctx.fillText(`${depth}m`, canvas.width/2 + r - 15, canvas.height/2);
+    const gridSize = 100;
+    ctx.beginPath();
+    for (let x = 0; x <= canvas.width; x += gridSize) {
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, canvas.height);
     }
-  }
+    for (let y = 0; y <= canvas.height; y += gridSize) {
+      ctx.moveTo(0, y);
+      ctx.lineTo(canvas.width, y);
+    }
+    ctx.stroke();
 
-  // Crosshair at center
-  ctx.strokeStyle = "rgba(0, 255, 64, 0.3)";
-  ctx.beginPath();
-  ctx.arc(canvas.width/2, canvas.height/2, 100, 0, Math.PI * 2);
-  ctx.stroke();
+    // Depth rings
+    const maxRadius = Math.hypot(canvas.width/2, canvas.height/2);
+    const depthScale = maxRadius / 500;
+
+    for (let depth = 100; depth <= 400; depth += 100) {
+      if (depth <= maxDepthM) {
+        const r = depth * depthScale;
+        ctx.strokeStyle = `rgba(0, 255, 64, ${0.1 + (depth/1000)})`;
+        ctx.setLineDash([5, 3]);
+        ctx.beginPath();
+        ctx.arc(canvas.width/2, canvas.height/2, r, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Depth label
+        ctx.fillStyle = "rgba(0, 255, 64, 0.3)";
+        ctx.font = "10px 'Share Tech Mono'";
+        ctx.textAlign = "center";
+        ctx.fillText(`${depth}m`, canvas.width/2 + r - 15, canvas.height/2);
+      }
+    }
+
+    // Crosshair at center
+    ctx.strokeStyle = "rgba(0, 255, 64, 0.3)";
+    ctx.beginPath();
+    ctx.arc(canvas.width/2, canvas.height/2, 100, 0, Math.PI * 2);
+    ctx.stroke();
+  } catch (e) {
+    console.error('Error drawing background:', e);
+  }
 }
 
 // Draw contacts with trails and authentic radar behavior
 function drawContacts() {
-  const centerX = canvas.width / 2;
-  const centerY = canvas.height / 2;
+  try {
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
 
-  const trailLength = Math.PI / 6;
-  let sweepStartAngle = sweepAngle - trailLength;
-  let sweepEndAngle = sweepAngle;
+    const trailLength = Math.PI / 6;
+    let sweepStartAngle = sweepAngle - trailLength;
+    let sweepEndAngle = sweepAngle;
 
-  contacts.forEach((contact, i) => {
-    // Initialize properties if not present
-    contact.lastInSweep = (typeof contact.lastInSweep === 'undefined') ? false : contact.lastInSweep;
-    contact.undetectedFrames = (typeof contact.undetectedFrames === 'undefined') ? 0 : contact.undetectedFrames;
-    contact.depth = (typeof contact.depth === 'undefined') ? 150 : contact.depth;
+    contacts.forEach((contact, i) => {
+      // Initialize properties if not present
+      contact.lastInSweep = (typeof contact.lastInSweep === 'undefined') ? false : contact.lastInSweep;
+      contact.undetectedFrames = (typeof contact.undetectedFrames === 'undefined') ? 0 : contact.undetectedFrames;
+      contact.depth = (typeof contact.depth === 'undefined') ? 150 : contact.depth;
 
-    // Record current position for trail
-    if (!contact.trail) contact.trail = [];
-    contact.trail.push({ x: contact.x, y: contact.y });
-    if (contact.trail.length > MAX_TRAIL_LENGTH) contact.trail.shift();
+      // Record current position for trail
+      if (!contact.trail) contact.trail = [];
+      contact.trail.push({ x: contact.x, y: contact.y });
+      if (contact.trail.length > MAX_TRAIL_LENGTH) contact.trail.shift();
 
-    // Move contact with realistic speed
-    let currentSpeed = contact.speed;
-    if (contact.depth > 50) {
-      currentSpeed = Math.max(0.3, Math.min(2.0, contact.speed));
-    } else {
-      currentSpeed = Math.max(0.8, Math.min(4.0, contact.speed));
-    }
-
-    contact.x += Math.cos(contact.angle) * currentSpeed;
-    contact.y += Math.sin(contact.angle) * currentSpeed;
-
-    // Wrap around screen edges
-    if (contact.x < 0) contact.x = canvas.width;
-    if (contact.x > canvas.width) contact.x = 0;
-    if (contact.y < 0) contact.y = canvas.height;
-    if (contact.y > canvas.height) contact.y = 0;
-
-    // Draw trail
-    if (trailsEnabled) {
-      for (let j = 0; j < contact.trail.length; j++) {
-        const pos = contact.trail[j];
-        const alpha = (j / contact.trail.length) * 0.4;
-
-        ctx.fillStyle = contact.color.replace(')', `, ${alpha})`);
-        ctx.beginPath();
-        ctx.arc(pos.x, pos.y, 2, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-
-    // Calculate distance from center
-    const dx = contact.x - centerX;
-    const dy = contact.y - centerY;
-    const distPx = Math.sqrt(dx*dx + dy*dy);
-    const distNm = distPx / 5;
-
-    // Range filter check (only check minimum range)
-    if (distNm < minRangeNm) {
-      return;
-    }
-
-    // Depth filter check
-    if (contact.depth > maxDepthM) {
-      return;
-    }
-
-    // Calculate bearing
-    let angleFromCenter = Math.atan2(dy, dx);
-    if (angleFromCenter < 0) angleFromCenter += Math.PI * 2;
-
-    // Determine if contact is within current sweep arc
-    let inSweep = false;
-    while (sweepStartAngle < 0) sweepStartAngle += Math.PI * 2;
-    while (sweepEndAngle > Math.PI * 2) sweepEndAngle -= Math.PI * 2;
-
-    if (sweepStartAngle <= sweepEndAngle) {
-      inSweep = angleFromCenter >= sweepStartAngle && angleFromCenter <= sweepEndAngle;
-    } else {
-      inSweep = angleFromCenter >= sweepStartAngle || angleFromCenter <= sweepEndAngle;
-    }
-
-    // Sonar ping when sweep first reaches contact
-    if (!contact.lastInSweep && inSweep) {
-      const bearingFromNorth = (Math.PI / 2 - angleFromCenter + Math.PI * 2) % (Math.PI * 2);
-      
-      addGhostBlip(contact, angleFromCenter, distPx);
-      playSonarPing(bearingFromNorth, currentSpeed);
-
-      // Log contact detection
-      if (contact.type === 'hostile') {
-        addLogEntry(`${contact.id} detected at bearing ${Math.round(angleFromCenter * 180/Math.PI)}°.`, 'hostile');
+      // Move contact with realistic speed
+      let currentSpeed = contact.speed;
+      if (contact.depth > 50) {
+        currentSpeed = Math.max(0.3, Math.min(2.0, contact.speed));
       } else {
-        addLogEntry(`${contact.id} detected at bearing ${Math.round(angleFromCenter * 180/Math.PI)}°.`, 'friendly');
+        currentSpeed = Math.max(0.8, Math.min(4.0, contact.speed));
       }
+
+      contact.x += Math.cos(contact.angle) * currentSpeed;
+      contact.y += Math.sin(contact.angle) * currentSpeed;
+
+      // Wrap around screen edges
+      if (contact.x < 0) contact.x = canvas.width;
+      if (contact.x > canvas.width) contact.x = 0;
+      if (contact.y < 0) contact.y = canvas.height;
+      if (contact.y > canvas.height) contact.y = 0;
+
+      // Draw trail
+      if (trailsEnabled) {
+        for (let j = 0; j < contact.trail.length; j++) {
+          const pos = contact.trail[j];
+          const alpha = (j / contact.trail.length) * 0.4;
+
+          ctx.fillStyle = contact.color.replace(')', `, ${alpha})`);
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // Calculate distance from center
+      const dx = contact.x - centerX;
+      const dy = contact.y - centerY;
+      const distPx = Math.sqrt(dx*dx + dy*dy);
+      const distNm = distPx / 5;
+
+      // Range filter check (only check minimum range)
+      if (distNm < minRangeNm) {
+        return;
+      }
+
+      // Depth filter check
+      if (contact.depth > maxDepthM) {
+        return;
+      }
+
+      // Calculate bearing
+      let angleFromCenter = Math.atan2(dy, dx);
+      if (angleFromCenter < 0) angleFromCenter += Math.PI * 2;
+
+      // Determine if contact is within current sweep arc
+      let inSweep = false;
+      while (sweepStartAngle < 0) sweepStartAngle += Math.PI * 2;
+      while (sweepEndAngle > Math.PI * 2) sweepEndAngle -= Math.PI * 2;
+
+      if (sweepStartAngle <= sweepEndAngle) {
+        inSweep = angleFromCenter >= sweepStartAngle && angleFromCenter <= sweepEndAngle;
+      } else {
+        inSweep = angleFromCenter >= sweepStartAngle || angleFromCenter <= sweepEndAngle;
+      }
+
+      // Sonar ping when sweep first reaches contact
+      if (!contact.lastInSweep && inSweep) {
+        const bearingFromNorth = (Math.PI / 2 - angleFromCenter + Math.PI * 2) % (Math.PI * 2);
+        
+        addGhostBlip(contact, angleFromCenter, distPx);
+        playSonarPing(bearingFromNorth, currentSpeed);
+
+        // Log contact detection
+        if (contact.type === 'hostile') {
+          addLogEntry(`${contact.id} detected at bearing ${Math.round(angleFromCenter * 180/Math.PI)}°.`, 'hostile');
+        } else {
+          addLogEntry(`${contact.id} detected at bearing ${Math.round(angleFromCenter * 180/Math.PI)}°.`, 'friendly');
+        }
+      }
+
+      contact.lastInSweep = inSweep;
+
+      // Handle fade-out
+      if (!inSweep) {
+        contact.undetectedFrames++;
+      } else {
+        contact.undetectedFrames = 0;
+      }
+
+      // Calculate signal strength
+      const angleDiff1 = Math.abs(angleFromCenter - sweepAngle);
+      const angleDiff2 = Math.abs(angleFromCenter - (sweepAngle + Math.PI * 2));
+      const angleDiff3 = Math.abs((angleFromCenter + Math.PI * 2) - sweepAngle);
+      const minAngleDiff = Math.min(angleDiff1, angleDiff2, angleDiff3);
+      const signalStrength = Math.min(minAngleDiff / (trailLength/2), 1);
+
+      // Fade out if undetected
+      let contactAlpha = 1;
+      if (contact.undetectedFrames > 5) {
+        contactAlpha = Math.max(0, 1 - (contact.undetectedFrames - 5) * 0.2);
+      }
+
+      // Draw contact blip
+      ctx.shadowBlur = inSweep ? 8 : 0;
+      ctx.shadowColor = contact.color;
+
+      const baseColor = contact.color.replace(')', `, ${contactAlpha * (1 - signalStrength * 0.3)})`);
+      ctx.fillStyle = baseColor;
+
+      const blipSize = inSweep ? 4 : Math.max(2, 3 - signalStrength);
+
+      ctx.beginPath();
+      ctx.arc(contact.x, contact.y, blipSize, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Label
+      if (inSweep) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${contactAlpha})`;
+        ctx.font = "11px 'Share Tech Mono'";
+        const rangeNm = Math.round(distPx / 5);
+        const bearingDeg = Math.round(angleFromCenter * (180/Math.PI));
+
+        const depthInfo = contact.depth > 0 ? ` D:${contact.depth}m` : '';
+        ctx.fillText(`${contact.id} R:${rangeNm}nm B:${bearingDeg}${depthInfo}`, contact.x + 10, contact.y - 8);
+      }
+
+      // Update latest contact info
+      if (inSweep) {
+        document.getElementById('latestContactId').textContent = contact.id;
+        document.getElementById('latestBearing').textContent = `${Math.round(angleFromCenter * 180/Math.PI)}°`;
+        document.getElementById('latestRange').textContent = `${rangeNm} nm`;
+        document.getElementById('latestDepth').textContent = `${contact.depth} m`;
+      }
+
+      ctx.shadowBlur = 0;
+    });
+
+    // Draw ghost blips
+    for (let i = ghostBlips.length - 1; i >= 0; i--) {
+      const ghost = ghostBlips[i];
+      ghost.age++;
+      ghost.opacity -= 0.04;
+
+      if (ghost.opacity <= 0 || ghost.age > ghost.maxAge) {
+        ghostBlips.splice(i, 1);
+        continue;
+      }
+
+      ctx.fillStyle = `rgba(255, 255, 255, ${ghost.opacity})`;
+      ctx.beginPath();
+      ctx.arc(ghost.x, ghost.y, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = `rgba(255, 255, 255, ${ghost.opacity})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(ghost.x, ghost.y);
+      ctx.lineTo(ghost.ghostX, ghost.ghostY);
+      ctx.stroke();
     }
-
-    contact.lastInSweep = inSweep;
-
-    // Handle fade-out
-    if (!inSweep) {
-      contact.undetectedFrames++;
-    } else {
-      contact.undetectedFrames = 0;
-    }
-
-    // Calculate signal strength
-    const angleDiff1 = Math.abs(angleFromCenter - sweepAngle);
-    const angleDiff2 = Math.abs(angleFromCenter - (sweepAngle + Math.PI * 2));
-    const angleDiff3 = Math.abs((angleFromCenter + Math.PI * 2) - sweepAngle);
-    const minAngleDiff = Math.min(angleDiff1, angleDiff2, angleDiff3);
-    const signalStrength = Math.min(minAngleDiff / (trailLength/2), 1);
-
-    // Fade out if undetected
-    let contactAlpha = 1;
-    if (contact.undetectedFrames > 5) {
-      contactAlpha = Math.max(0, 1 - (contact.undetectedFrames - 5) * 0.2);
-    }
-
-    // Draw contact blip
-    ctx.shadowBlur = inSweep ? 8 : 0;
-    ctx.shadowColor = contact.color;
-
-    const baseColor = contact.color.replace(')', `, ${contactAlpha * (1 - signalStrength * 0.3)})`);
-    ctx.fillStyle = baseColor;
-
-    const blipSize = inSweep ? 4 : Math.max(2, 3 - signalStrength);
-
-    ctx.beginPath();
-    ctx.arc(contact.x, contact.y, blipSize, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Label
-    if (inSweep) {
-      ctx.fillStyle = `rgba(255, 255, 255, ${contactAlpha})`;
-      ctx.font = "11px 'Share Tech Mono'";
-      const rangeNm = Math.round(distPx / 5);
-      const bearingDeg = Math.round(angleFromCenter * (180/Math.PI));
-
-      const depthInfo = contact.depth > 0 ? ` D:${contact.depth}m` : '';
-      ctx.fillText(`${contact.id} R:${rangeNm}nm B:${bearingDeg}${depthInfo}`, contact.x + 10, contact.y - 8);
-    }
-
-    // Update latest contact info
-    if (inSweep) {
-      document.getElementById('latestContactId').textContent = contact.id;
-      document.getElementById('latestBearing').textContent = `${Math.round(angleFromCenter * 180/Math.PI)}°`;
-      document.getElementById('latestRange').textContent = `${rangeNm} nm`;
-      document.getElementById('latestDepth').textContent = `${contact.depth} m`;
-    }
-
-    ctx.shadowBlur = 0;
-  });
-
-  // Draw ghost blips
-  for (let i = ghostBlips.length - 1; i >= 0; i--) {
-    const ghost = ghostBlips[i];
-    ghost.age++;
-    ghost.opacity -= 0.04;
-
-    if (ghost.opacity <= 0 || ghost.age > ghost.maxAge) {
-      ghostBlips.splice(i, 1);
-      continue;
-    }
-
-    ctx.fillStyle = `rgba(255, 255, 255, ${ghost.opacity})`;
-    ctx.beginPath();
-    ctx.arc(ghost.x, ghost.y, 4, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.strokeStyle = `rgba(255, 255, 255, ${ghost.opacity})`;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(ghost.x, ghost.y);
-    ctx.lineTo(ghost.ghostX, ghost.ghostY);
-    ctx.stroke();
+  } catch (e) {
+    console.error('Error drawing contacts:', e);
   }
 }
 
 // Draw radar sweep
 function drawRadarSweep() {
-  const centerX = canvas.width / 2;
-  const centerY = canvas.height / 2;
-  const radius = Math.hypot(centerX, centerY);
+  try {
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const radius = Math.hypot(centerX, centerY);
 
-  ctx.globalCompositeOperation = 'lighter';
+    ctx.globalCompositeOperation = 'lighter';
 
-  const trailLength = Math.PI / 6;
-  let startAngle = sweepAngle - trailLength;
-  const endAngle = sweepAngle;
+    const trailLength = Math.PI / 6;
+    let startAngle = sweepAngle - trailLength;
+    const endAngle = sweepAngle;
 
-  if (startAngle < 0) {
-    ctx.beginPath();
-    ctx.moveTo(centerX, centerY);
-    ctx.arc(centerX, centerY, radius, startAngle + Math.PI * 2, Math.PI * 2);
-    ctx.arc(centerX, centerY, radius, 0, endAngle);
-  } else if (endAngle > Math.PI * 2) {
-    ctx.beginPath();
-    ctx.moveTo(centerX, centerY);
-    ctx.arc(centerX, centerY, radius, startAngle, Math.PI * 2);
-    ctx.arc(centerX, centerY, radius, 0, endAngle - Math.PI * 2);
-  } else {
-    ctx.beginPath();
-    ctx.moveTo(centerX, centerY);
-    ctx.arc(centerX, centerY, radius, startAngle, endAngle);
-  }
-
-  ctx.closePath();
-
-  const grad = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
-  grad.addColorStop(0, 'rgba(0, 255, 64, 0)');
-  grad.addColorStop(0.3, 'rgba(0, 255, 64, 0.15)');
-  grad.addColorStop(1, 'rgba(0, 255, 64, 0.25)');
-
-  ctx.fillStyle = grad;
-  ctx.fill();
-
-  // Bright leading edge line
-  ctx.beginPath();
-  ctx.moveTo(centerX, centerY);
-  ctx.lineTo(
-    centerX + Math.cos(sweepAngle) * radius,
-    centerY + Math.sin(sweepAngle) * radius
-  );
-  ctx.strokeStyle = 'rgba(0, 255, 64, 1.0)';
-  ctx.lineWidth = 2;
-  ctx.shadowBlur = 8;
-  ctx.shadowColor = '#0f0';
-  ctx.stroke();
-  ctx.shadowBlur = 0;
-
-  ctx.globalCompositeOperation = 'source-over';
-
-  // Update sweep angle
-  sweepAngle += SWEEP_SPEED;
-  
-  if (sweepAngle >= Math.PI * 2) {
-    sweepAngle -= Math.PI * 2;
-    playRadarBleep();
-  }
-
-  // Draw sonar waveforms
-  for (let i = sonarWaves.length - 1; i >= 0; i--) {
-    const wave = sonarWaves[i];
-    wave.radius += 3;
-    wave.opacity -= 0.02;
-
-    if (wave.opacity <= 0) {
-      sonarWaves.splice(i, 1);
-      continue;
+    if (startAngle < 0) {
+      ctx.beginPath();
+      ctx.moveTo(centerX, centerY);
+      ctx.arc(centerX, centerY, radius, startAngle + Math.PI * 2, Math.PI * 2);
+      ctx.arc(centerX, centerY, radius, 0, endAngle);
+    } else if (endAngle > Math.PI * 2) {
+      ctx.beginPath();
+      ctx.moveTo(centerX, centerY);
+      ctx.arc(centerX, centerY, radius, startAngle, Math.PI * 2);
+      ctx.arc(centerX, centerY, radius, 0, endAngle - Math.PI * 2);
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(centerX, centerY);
+      ctx.arc(centerX, centerY, radius, startAngle, endAngle);
     }
 
+    ctx.closePath();
+
+    const grad = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
+    grad.addColorStop(0, 'rgba(0, 255, 64, 0)');
+    grad.addColorStop(0.3, 'rgba(0, 255, 64, 0.15)');
+    grad.addColorStop(1, 'rgba(0, 255, 64, 0.25)');
+
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Bright leading edge line
     ctx.beginPath();
-    ctx.arc(wave.x, wave.y, wave.radius, 0, Math.PI * 2);
-    ctx.strokeStyle = `rgba(0, 255, 64, ${wave.opacity})`;
+    ctx.moveTo(centerX, centerY);
+    ctx.lineTo(
+      centerX + Math.cos(sweepAngle) * radius,
+      centerY + Math.sin(sweepAngle) * radius
+    );
+    ctx.strokeStyle = 'rgba(0, 255, 64, 1.0)';
     ctx.lineWidth = 2;
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = '#0f0';
     ctx.stroke();
+    ctx.shadowBlur = 0;
 
-    if (Math.floor(Date.now() / 100) % 3 === 0) {
-      ctx.fillStyle = `rgba(255, 255, 255, ${wave.opacity})`;
-      ctx.font = "bold 14px 'Share Tech Mono'";
-      ctx.fillText("PING!", wave.x - 18, wave.y + 4);
-    }
-  }
+    ctx.globalCompositeOperation = 'source-over';
 
-  // Draw echo rings
-  for (let i = echoRings.length - 1; i >= 0; i--) {
-    const ring = echoRings[i];
-    ring.radius += 8;
-    ring.opacity -= 0.05;
-
-    if (ring.opacity <= 0 || ring.radius > ring.maxRadius) {
-      echoRings.splice(i, 1);
-      continue;
+    // Update sweep angle
+    sweepAngle += SWEEP_SPEED;
+    
+    if (sweepAngle >= Math.PI * 2) {
+      sweepAngle -= Math.PI * 2;
+      playRadarBleep();
     }
 
+    // Draw sonar waveforms
+    for (let i = sonarWaves.length - 1; i >= 0; i--) {
+      const wave = sonarWaves[i];
+      wave.radius += 3;
+      wave.opacity -= 0.02;
+
+      if (wave.opacity <= 0) {
+        sonarWaves.splice(i, 1);
+        continue;
+      }
+
+      ctx.beginPath();
+      ctx.arc(wave.x, wave.y, wave.radius, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(0, 255, 64, ${wave.opacity})`;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      if (Math.floor(Date.now() / 100) % 3 === 0) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${wave.opacity})`;
+        ctx.font = "bold 14px 'Share Tech Mono'";
+        ctx.fillText("PING!", wave.x - 18, wave.y + 4);
+      }
+    }
+
+    // Draw echo rings
+    for (let i = echoRings.length - 1; i >= 0; i--) {
+      const ring = echoRings[i];
+      ring.radius += 8;
+      ring.opacity -= 0.05;
+
+      if (ring.opacity <= 0 || ring.radius > ring.maxRadius) {
+        echoRings.splice(i, 1);
+        continue;
+      }
+
+      ctx.beginPath();
+      ctx.arc(ring.x, ring.y, ring.radius, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(0, 255, 64, ${ring.opacity})`;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      if (Math.floor(Date.now() / 50) % 4 === 0) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${ring.opacity})`;
+        ctx.font = "10px 'Share Tech Mono'";
+        const rangeNm = Math.round(ring.radius / 8);
+        ctx.fillText(`ECHO ${rangeNm}nm`, ring.x - 15, ring.y + 3);
+      }
+    }
+
+    // Draw center hub
+    ctx.fillStyle = "#0a3a0a";
     ctx.beginPath();
-    ctx.arc(ring.x, ring.y, ring.radius, 0, Math.PI * 2);
-    ctx.strokeStyle = `rgba(0, 255, 64, ${ring.opacity})`;
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
+    ctx.arc(centerX, centerY, 25, 0, Math.PI * 2);
+    ctx.fill();
 
-    if (Math.floor(Date.now() / 50) % 4 === 0) {
-      ctx.fillStyle = `rgba(255, 255, 255, ${ring.opacity})`;
-      ctx.font = "10px 'Share Tech Mono'";
-      const rangeNm = Math.round(ring.radius / 8);
-      ctx.fillText(`ECHO ${rangeNm}nm`, ring.x - 15, ring.y + 3);
-    }
-  }
-
-  // Draw center hub
-  ctx.fillStyle = "#0a3a0a";
-  ctx.beginPath();
-  ctx.arc(centerX, centerY, 25, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Crosshair lines
-  ctx.strokeStyle = "rgba(0, 255, 64, 0.3)";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(centerX - 30, centerY);
-  ctx.lineTo(centerX + 30, centerY);
-  ctx.moveTo(centerX, centerY - 30);
-  ctx.lineTo(centerX, centerY + 30);
-  ctx.stroke();
-
-  // Range rings
-  for (let r = 150; r < radius; r += 150) {
-    const nm = Math.round(r / 5);
-
-    ctx.strokeStyle = "rgba(0, 255, 64, 0.15)";
+    // Crosshair lines
+    ctx.strokeStyle = "rgba(0, 255, 64, 0.3)";
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
+    ctx.moveTo(centerX - 30, centerY);
+    ctx.lineTo(centerX + 30, centerY);
+    ctx.moveTo(centerX, centerY - 30);
+    ctx.lineTo(centerX, centerY + 30);
     ctx.stroke();
 
+    // Range rings
+    for (let r = 150; r < radius; r += 150) {
+      const nm = Math.round(r / 5);
+
+      ctx.strokeStyle = "rgba(0, 255, 64, 0.15)";
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.fillStyle = "#afa";
+      ctx.font = "bold 12px 'Share Tech Mono'";
+      ctx.textAlign = "center";
+      ctx.fillText(`${nm}nm`, centerX + r - 15, centerY - 3);
+    }
+
+    // Direction indicators
     ctx.fillStyle = "#afa";
-    ctx.font = "bold 12px 'Share Tech Mono'";
+    ctx.font = "bold 14px 'Share Tech Mono'";
+    
+    const radiusOffset = radius + 20;
     ctx.textAlign = "center";
-    ctx.fillText(`${nm}nm`, centerX + r - 15, centerY - 3);
+    ctx.fillText("N", centerX, centerY - radiusOffset);
+    ctx.fillText("S", centerX, centerY + radiusOffset);
+    ctx.textAlign = "right";
+    ctx.fillText("W", centerX - radiusOffset, centerY + 4);
+    ctx.textAlign = "left";
+    ctx.fillText("E", centerX + radiusOffset, centerY + 4);
+  } catch (e) {
+    console.error('Error drawing radar sweep:', e);
   }
-
-  // Direction indicators
-  ctx.fillStyle = "#afa";
-  ctx.font = "bold 14px 'Share Tech Mono'";
-  
-  const radiusOffset = radius + 20;
-  ctx.textAlign = "center";
-  ctx.fillText("N", centerX, centerY - radiusOffset);
-  ctx.fillText("S", centerX, centerY + radiusOffset);
-  ctx.textAlign = "right";
-  ctx.fillText("W", centerX - radiusOffset, centerY + 4);
-  ctx.textAlign = "left";
-  ctx.fillText("E", centerX + radiusOffset, centerY + 4);
 }
 
 // Update ship status readouts
 function updateShipStatus() {
-  // Randomize for demo purposes (real subs would use actual sensor data)
-  const depth = Math.floor(Math.random() * 300) + 150;
-  const speed = (Math.random() * 8 + 2).toFixed(1);
-  const heading = Math.floor(Math.random() * 360);
-  
-  document.getElementById('depthReadout').textContent = `${depth}m`;
-  document.getElementById('speedReadout').textContent = `${speed} kts`;
-  document.getElementById('headingReadout').textContent = `${heading.toString().padStart(3, '0')}°`;
+  try {
+    // Randomize for demo purposes (real subs would use actual sensor data)
+    const depth = Math.floor(Math.random() * 300) + 150;
+    const speed = (Math.random() * 8 + 2).toFixed(1);
+    const heading = Math.floor(Math.random() * 360);
+    
+    document.getElementById('depthReadout').textContent = `${depth}m`;
+    document.getElementById('speedReadout').textContent = `${speed} kts`;
+    document.getElementById('headingReadout').textContent = `${heading.toString().padStart(3, '0')}°`;
+  } catch (e) {
+    console.error('Error updating ship status:', e);
+  }
 }
 
 // Update clock
 function updateClock() {
-  const now = new Date();
-  const utcTime = `${String(now.getUTCHours()).padStart(2, '0')}:${String(now.getUTCMinutes()).padStart(2, '0')}:${String(now.getUTCSeconds()).padStart(2, '0')}Z`;
-  
-  document.getElementById('utcClock').textContent = utcTime;
+  try {
+    const now = new Date();
+    const utcTime = `${String(now.getUTCHours()).padStart(2, '0')}:${String(now.getUTCMinutes()).padStart(2, '0')}:${String(now.getUTCSeconds()).padStart(2, '0')}Z`;
+    
+    document.getElementById('utcClock').textContent = utcTime;
 
-  // Update mission timer
-  const elapsed = performance.now() - missionStartTime;
-  const hours = Math.floor(elapsed / 3600000);
-  const minutes = Math.floor((elapsed % 3600000) / 60000);
-  const seconds = Math.floor((elapsed % 60000) / 1000);
-  
-  document.getElementById('missionTimer').textContent = 
-    `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    // Update mission timer
+    const elapsed = performance.now() - missionStartTime;
+    const hours = Math.floor(elapsed / 3600000);
+    const minutes = Math.floor((elapsed % 3600000) / 60000);
+    const seconds = Math.floor((elapsed % 60000) / 1000);
+    
+    document.getElementById('missionTimer').textContent = 
+      `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  } catch (e) {
+    console.error('Error updating clock:', e);
+  }
 }
 
 // Update acoustic environment data
 function updateAcousticData() {
-  const noiseFloor = -45 + Math.floor(Math.random() * 10);
-  const waterTemp = 18 + Math.floor(Math.random() * 4);
-  
-  document.getElementById('noiseFloor').textContent = `${noiseFloor} dB`;
-  document.getElementById('waterTemp').textContent = `${waterTemp}°C at 200m`;
+  try {
+    const noiseFloor = -45 + Math.floor(Math.random() * 10);
+    const waterTemp = 18 + Math.floor(Math.random() * 4);
+    
+    document.getElementById('noiseFloor').textContent = `${noiseFloor} dB`;
+    document.getElementById('waterTemp').textContent = `${waterTemp}°C at 200m`;
+  } catch (e) {
+    console.error('Error updating acoustic data:', e);
+  }
 }
 
 // Main render loop
 function animate() {
-  const now = performance.now();
-  frameCount++;
+  try {
+    const now = performance.now();
+    frameCount++;
 
-  if (now - lastTime >= 1000) {
-    fps = Math.round((frameCount * 1000) / (now - lastTime));
-    document.getElementById('fpsDisplay').textContent = fps;
-    document.getElementById('contactCount').textContent = contacts.length;
-    
-    updateShipStatus();
-    updateAcousticData();
-    
-    frameCount = 0;
-    lastTime = now;
+    if (now - lastTime >= 1000) {
+      fps = Math.round((frameCount * 1000) / (now - lastTime));
+      document.getElementById('fpsDisplay').textContent = fps;
+      document.getElementById('contactCount').textContent = contacts.length;
+      
+      updateShipStatus();
+      updateAcousticData();
+      
+      frameCount = 0;
+      lastTime = now;
+    }
+
+    // Update clock every second
+    if (now - lastUtcUpdate >= 1000) {
+      updateClock();
+      lastUtcUpdate = now;
+    }
+
+    // Clear canvas with slight fade for motion blur
+    ctx.fillStyle = "rgba(10, 26, 42, 0.3)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    drawBackground();
+    drawContacts();
+    drawRadarSweep();
+
+    requestAnimationFrame(animate);
+  } catch (e) {
+    console.error('Error in animation loop:', e);
   }
-
-  // Update clock every second
-  if (now - lastUtcUpdate >= 1000) {
-    updateClock();
-    lastUtcUpdate = now;
-  }
-
-  // Clear canvas with slight fade for motion blur
-  ctx.fillStyle = "rgba(10, 26, 42, 0.3)";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  drawBackground();
-  drawContacts();
-  drawRadarSweep();
-
-  requestAnimationFrame(animate);
 }
 
 // Interactive controls
 canvas.addEventListener('click', (e) => {
-  const rect = canvas.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
+  try {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
 
-  const angle = Math.random() * Math.PI * 2;
-  const depth = Math.floor(Math.random() * 400) + 50;
+    const angle = Math.random() * Math.PI * 2;
+    const depth = Math.floor(Math.random() * 400) + 50;
 
-  let speed;
-  if (depth > 50) {
-    speed = 0.3 + Math.random() * 1.7;
-  } else {
-    speed = 0.8 + Math.random() * 3.2;
+    let speed;
+    if (depth > 50) {
+      speed = 0.3 + Math.random() * 1.7;
+    } else {
+      speed = 0.8 + Math.random() * 3.2;
+    }
+
+    const isHostile = Math.random() > 0.6; // 40% chance of hostile
+    const contactType = isHostile ? 'hostile' : 'friendly';
+    const color = isHostile ? '#ff2020' : '#00ff41';
+    const id = isHostile ? `SKUNK-${contacts.length + 1}` : `GOBLIN-${contacts.length + 1}`;
+
+    contacts.push({
+      x, y,
+      speed,
+      angle,
+      depth,
+      type: contactType,
+      color,
+      id,
+      trail: [],
+      lastInSweep: false,
+      undetectedFrames: 0
+    });
+
+    addLogEntry(`New contact ${id} acquired at bearing ${Math.round(angle * 180/Math.PI)}°.`, isHostile ? 'hostile' : 'friendly');
+  } catch (e) {
+    console.error('Error adding contact:', e);
   }
-
-  const isHostile = Math.random() > 0.6; // 40% chance of hostile
-  const contactType = isHostile ? 'hostile' : 'friendly';
-  const color = isHostile ? '#ff2020' : '#00ff41';
-  const id = isHostile ? `SKUNK-${contacts.length + 1}` : `GOBLIN-${contacts.length + 1}`;
-
-  contacts.push({
-    x, y,
-    speed,
-    angle,
-    depth,
-    type: contactType,
-    color,
-    id,
-    trail: [],
-    lastInSweep: false,
-    undetectedFrames: 0
-  });
-
-  addLogEntry(`New contact ${id} acquired at bearing ${Math.round(angle * 180/Math.PI)}°.`, isHostile ? 'hostile' : 'friendly');
 });
 
 // LED Toggle Functions
@@ -1272,9 +1362,9 @@ function toggleTrails() {
 }
 
 // LED Event Listeners
-document.querySelector('#sonarLed + span').addEventListener('click', toggleSonar);
-document.querySelector('#ghostLed + span').addEventListener('click', toggleGhostEchoes);
-document.querySelector('#trailLed + span').addEventListener('click', toggleTrails);
+document.getElementById('sonarToggle').addEventListener('click', toggleSonar);
+document.getElementById('ghostToggle').addEventListener('click', toggleGhostEchoes);
+document.getElementById('trailToggle').addEventListener('click', toggleTrails);
 
 // Range slider handler
 const rangeSlider = document.getElementById('rangeSlider');
@@ -1302,6 +1392,30 @@ document.getElementById('fireControlBtn').addEventListener('click', () => {
     btn.style.color = '#ff2020';
     addLogEntry('Fire control armed. Ready to engage targets.', 'hostile');
   }
+});
+
+// Torpedo tube button handlers
+document.querySelectorAll('.tube-btn').forEach(tubeBtn => {
+  tubeBtn.addEventListener('click', function() {
+    const tubeNumber = this.getAttribute('data-tube');
+    
+    // Toggle between empty, ready, and armed states
+    if (this.classList.contains('armed')) {
+      this.classList.remove('armed');
+      this.classList.add('ready');
+      this.querySelector('span').innerHTML = `<span>TUBE ${tubeNumber}<br>FRIENDLY</span>`;
+      addLogEntry(`Tube ${tubeNumber}: Changed from ARMED to FRIENDLY ready state.`, 'system');
+    } else if (this.classList.contains('ready')) {
+      this.classList.remove('ready');
+      this.querySelector('span').innerHTML = `<span>TUBE ${tubeNumber}<br>EMPTY</span>`;
+      addLogEntry(`Tube ${tubeNumber}: Changed from FRIENDLY to EMPTY.`, 'system');
+    } else {
+      this.classList.add('armed');
+      const isHostile = Math.random() > 0.5;
+      this.querySelector('span').innerHTML = `<span>TUBE ${tubeNumber}<br>${isHostile ? 'HOSTILE' : 'FRIENDLY'}<br>ARMED</span>`;
+      addLogEntry(`Tube ${tubeNumber}: Arming ${isHostile ? 'hostile' : 'friendly'} torpedo.`, isHostile ? 'hostile' : 'friendly');
+    }
+  });
 });
 
 // Start the animation
