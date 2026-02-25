@@ -310,18 +310,10 @@ function playSonarPing(bearingAngle, contactSpeed) {
   const osc = audioCtx.createOscillator();
   const gainNode = audioCtx.createGain();
   
-  osc.type = 'sine';
-  
-  // Doppler shift: pitch changes based on relative speed
-  let baseFreq = 200;
-  if (typeof contactSpeed !== 'undefined' && contactSpeed > 0) {
-    // Higher pitch if moving toward sweep direction, lower if away
-    const dopplerFactor = 1 + (contactSpeed * 0.05); // ±5% shift max
-    baseFreq *= dopplerFactor;
-  }
-  
-  osc.frequency.setValueAtTime(baseFreq, audioCtx.currentTime);
-  osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.3);
+  // Realistic sonar ping: frequency sweep from 1-3 kHz down to 500 Hz (like real naval sonar)
+  osc.type = 'sawtooth'; // Sawtooth gives more realistic sonar texture
+  osc.frequency.setValueAtTime(2000, audioCtx.currentTime); // Start at 2kHz
+  osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.4); // Sweep down to 600Hz
   
   // Create spatial effect (stereo panning)
   const panner = audioCtx.createStereoPanner();
@@ -339,8 +331,9 @@ function playSonarPing(bearingAngle, contactSpeed) {
   panner.connect(gainNode);
   gainNode.connect(audioCtx.destination);
   
-  gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
-  gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+  // Realistic sonar volume envelope
+  gainNode.gain.setValueAtTime(0.4, audioCtx.currentTime); // Stronger initial hit
+  gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5); // Longer fade
   
   osc.start();
   osc.stop(audioCtx.currentTime + 0.6);
@@ -349,23 +342,25 @@ function playSonarPing(bearingAngle, contactSpeed) {
   createSonarEchoRing(sweepAngle);
 }
 
-// Play radar sweep "bleep" sound (short high-pitched beep every revolution)
+// Play realistic radar sweep "blip" sound (short sharp pulse every revolution)
 function playRadarBleep() {
   if (!audioCtx) return;
   
   const osc = audioCtx.createOscillator();
   const gainNode = audioCtx.createGain();
   
-  osc.type = 'sine';
-  osc.frequency.setValueAtTime(1200, audioCtx.currentTime); // High pitch bleep
-  gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime); // Subtle volume
-  gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+  // Realistic air search radar: short high-frequency blip around 8-12 kHz
+  osc.type = 'square'; // Square wave gives that classic radar blip character
+  osc.frequency.setValueAtTime(9500, audioCtx.currentTime); // ~9.5kHz - typical for air search radar
+  
+  gainNode.gain.setValueAtTime(0.25, audioCtx.currentTime); // Sharp but not overpowering
+  gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.06); // Very short decay (60ms)
   
   osc.connect(gainNode);
   gainNode.connect(audioCtx.destination);
   
   osc.start();
-  osc.stop(audioCtx.currentTime + 0.1);
+  osc.stop(audioCtx.currentTime + 0.08);
 }
 
 let sonarWaves = []; // Old-style concentric rings
