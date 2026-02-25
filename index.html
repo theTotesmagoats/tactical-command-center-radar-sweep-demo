@@ -33,8 +33,8 @@
   /* Main container for horizontal layout */
   .main-container {
     display: flex;
-    gap: 20px;
-    align-items: flex-start;
+    gap: 25px;
+    align-items: flex-end; /* Align bottoms of radar and controls */
   }
   
   .console-border {
@@ -51,20 +51,20 @@
     cursor: crosshair;
   }
   
-  /* Control Panel - Aircraft Carrier Style */
+  /* Control Panel - Submarine Style */
   .control-panel {
-    width: 320px;
+    width: 340px;
     display: flex;
     flex-direction: column;
     gap: 25px;
   }
 
   .panel-group {
-    background: linear-gradient(180deg, #0f0f12 0%, #0a0a0d 100%);
+    background: linear-gradient(180deg, #121216 0%, #0f0f12 100%);
     border: 3px inset #444;
     padding: 15px;
     border-radius: 0;
-    box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+    box-shadow: inset 0 0 25px rgba(0,0,0,0.9), 0 0 15px rgba(0,0,0,0.7);
   }
 
   .panel-group h3 {
@@ -75,17 +75,19 @@
     letter-spacing: 2px;
     border-bottom: 2px solid #333;
     padding-bottom: 8px;
+    background: linear-gradient(90deg, transparent, rgba(207,255,207,0.1), transparent);
   }
   
   .status-bar {
     background: linear-gradient(90deg, #0a0a0c 0%, #050507 100%);
     border: 2px inset #444;
-    padding: 10px;
+    padding: 12px;
     font-size: 0.9rem;
     color: #afa;
     text-align: center;
     letter-spacing: 1px;
     margin-bottom: 10px;
+    box-shadow: inset 0 0 15px rgba(0,0,0,0.8);
   }
   
   .controls {
@@ -94,69 +96,116 @@
     align-items: center;
   }
 
-  /* Enhanced Tactical Buttons - Aircraft Carrier Style */
+  /* Enhanced Submarine Switches */
   button {
-    background: linear-gradient(135deg, #1a1a2e 0%, #16162a 50%, #121222 100%);
-    border: 3px inset #444;
+    background: linear-gradient(135deg, #2a2a3e 0%, #1f1f2e 50%, #16162a 100%);
+    border: 4px inset #555;
     color: #cfc;
-    padding: 14px 28px;
+    padding: 18px 32px;
     font-family: 'Courier New', monospace;
     font-weight: bold;
     cursor: pointer;
     text-transform: uppercase;
     letter-spacing: 2px;
-    font-size: 13px;
+    font-size: 14px;
     transition: all 0.05s;
-    box-shadow: inset 0 0 12px rgba(0,0,0,0.7), 0 2px 6px rgba(0,0,0,0.4);
-    border-radius: 3px;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 3px 10px rgba(0,0,0,0.6);
+    border-radius: 4px;
+    height: 56px; /* Fixed height for alignment */
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   button:hover {
-    background: linear-gradient(135deg, #2a2a3e 0%, #1a1a2e 50%, #16162a 100%);
-    border-color: #666;
-    box-shadow: inset 0 0 18px rgba(0,0,0,0.8), 0 3px 8px rgba(0,0,0,0.5), 0 0 12px rgba(207,255,207,0.15);
+    background: linear-gradient(135deg, #3a3a4e 0%, #2a2a3e 50%, #1f1f2e 100%);
+    border-color: #777;
+    box-shadow: inset 0 0 28px rgba(0,0,0,0.9), 0 4px 12px rgba(0,0,0,0.7), 0 0 15px rgba(207,255,207,0.2);
+    transform: translateY(-1px);
   }
 
   button:active {
-    transform: translateY(2px);
-    border: 3px outset #444;
-    background: linear-gradient(135deg, #16162a 0%, #121222 50%, #0e0e1a 100%);
-    box-shadow: inset 0 0 22px rgba(0,0,0,0.9), 0 0 4px rgba(207,255,207,0.05);
+    transform: translateY(3px);
+    border: 4px outset #666;
+    background: linear-gradient(135deg, #1a1a2e 0%, #121222 50%, #0e0e1a 100%);
+    box-shadow: inset 0 0 32px rgba(0,0,0,0.95), 0 0 6px rgba(207,255,207,0.1);
+  }
+  
+  /* Submarine button metal texture effect */
+  button::before {
+    content: "";
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background-image: 
+      repeating-linear-gradient(45deg, transparent 0px, transparent 2px, rgba(255,255,255,0.03) 2px, rgba(255,255,255,0.03) 4px);
+    pointer-events: none;
+    border-radius: 4px;
+    z-index: 1;
+  }
+  
+  button span {
+    position: relative;
+    z-index: 2;
   }
 
-  /* Rocker Switch Style for Toggle Buttons */
+  /* Rocker Switch Style for Toggle Buttons - Enhanced Submarine Look */
   .rocker-switch {
     display: flex;
-    gap: 10px;
-    margin-top: 8px;
+    gap: 8px;
+    margin-top: 10px;
+    justify-content: center;
   }
 
   .toggle-btn {
-    width: 90px;
-    height: 36px;
-    background: linear-gradient(135deg, #2a1a1a 0%, #1a1414 50%, #161010 100%);
-    border: 3px inset #555;
+    width: 100%;
+    height: 42px;
+    background: linear-gradient(135deg, #3a2a2a 0%, #2a1f1f 50%, #1f1616 100%);
+    border: 3px inset #666;
     color: #cfc;
-    font-size: 10px;
+    font-size: 11px;
     letter-spacing: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: inset 0 0 15px rgba(0,0,0,0.8), 0 2px 6px rgba(0,0,0,0.4);
   }
 
   .toggle-btn.active {
-    background: linear-gradient(135deg, #1a2a1a 0%, #141a14 50%, #101610 100%);
+    background: linear-gradient(135deg, #1a3a1a 0%, #142a14 50%, #101f10 100%);
     border-color: #cfc;
     color: #cfc;
-    box-shadow: inset 0 0 18px rgba(0,255,128,0.3), 0 0 12px rgba(207,255,207,0.2);
+    box-shadow: inset 0 0 20px rgba(0,255,128,0.35), 0 0 15px rgba(207,255,207,0.25);
+  }
+  
+  /* Rocker switch metal texture */
+  .toggle-btn::before {
+    content: "";
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background-image: 
+      repeating-linear-gradient(45deg, transparent 0px, transparent 2px, rgba(255,255,255,0.03) 2px, rgba(255,255,255,0.03) 4px);
+    pointer-events: none;
+    border-radius: 3px;
+    z-index: 1;
+  }
+  
+  .toggle-btn.active::before {
+    background-image: 
+      repeating-linear-gradient(45deg, transparent 0px, transparent 2px, rgba(0,255,128,0.05) 2px, rgba(0,255,128,0.05) 4px);
   }
 
   /* Tactical Slider Container */
   .tactical-slider {
     display: flex;
     flex-direction: column;
-    min-width: 240px;
+    min-width: 260px;
     background: linear-gradient(180deg, #0a0a0c 0%, #050507 100%);
-    padding: 12px;
+    padding: 14px;
     border-radius: 0;
     border-left: 3px solid #333;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
   }
 
   /* Slider Labels */
@@ -165,7 +214,11 @@
     color: #cfc;
     text-transform: uppercase;
     letter-spacing: 2px;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
+    background: linear-gradient(90deg, transparent, rgba(207,255,207,0.2), transparent);
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 3px;
   }
 
   /* Range and Depth Displays */
@@ -176,14 +229,18 @@
     color: #afa;
     text-align: center;
     letter-spacing: 1px;
+    background: linear-gradient(90deg, rgba(255,255,255,0.05), transparent);
+    padding: 6px 8px;
+    border-radius: 3px;
+    margin-top: 8px;
   }
 
-  /* Military-Style Sliders - NO GREEN! */
+  /* Military-Style Sliders - Enhanced Submarine Look */
   input[type=range] {
     -webkit-appearance: none;
     width: 100%;
     background: transparent;
-    margin: 8px 0;
+    margin: 10px 0;
   }
 
   input[type=range]:focus {
@@ -192,44 +249,61 @@
 
   input[type=range]::-webkit-slider-runnable-track {
     width: 100%;
-    height: 6px;
+    height: 8px;
     cursor: pointer;
-    background: linear-gradient(90deg, #222 0%, #444 50%, #222 100%);
+    background: linear-gradient(90deg, #1a1a2e 0%, #2a2a3e 50%, #1a1a2e 100%);
     border-radius: 0;
-    box-shadow: inset 0 0 8px rgba(0,0,0,0.7);
+    box-shadow: inset 0 0 12px rgba(0,0,0,0.9), 0 2px 4px rgba(0,0,0,0.5);
+    border: 1px solid #333;
   }
 
   input[type=range]::-webkit-slider-thumb {
-    height: 16px;
-    width: 12px;
-    background: linear-gradient(90deg, #555 0%, #333 50%, #444 100%);
+    height: 20px;
+    width: 16px;
+    background: linear-gradient(90deg, #4a4a5e 0%, #3a3a4e 50%, #2a2a3e 100%);
     cursor: pointer;
     border-radius: 0;
-    box-shadow: inset 0 0 8px rgba(0,0,0,0.7), 0 0 5px rgba(255,255,255,0.3);
-    margin-top: -6px;
+    box-shadow: inset 0 0 12px rgba(0,0,0,0.8), 0 0 6px rgba(255,255,255,0.4);
+    margin-top: -7px;
+    border: 1px solid #555;
   }
 
   input[type=range]::-moz-range-track {
     width: 100%;
-    height: 6px;
+    height: 8px;
     cursor: pointer;
-    background: linear-gradient(90deg, #222 0%, #444 50%, #222 100%);
+    background: linear-gradient(90deg, #1a1a2e 0%, #2a2a3e 50%, #1a1a2e 100%);
     border-radius: 0;
+    box-shadow: inset 0 0 12px rgba(0,0,0,0.9), 0 2px 4px rgba(0,0,0,0.5);
+    border: 1px solid #333;
   }
 
   input[type=range]::-moz-range-thumb {
-    height: 16px;
-    width: 12px;
-    background: linear-gradient(90deg, #555 0%, #333 50%, #444 100%);
+    height: 20px;
+    width: 16px;
+    background: linear-gradient(90deg, #4a4a5e 0%, #3a3a4e 50%, #2a2a3e 100%);
     cursor: pointer;
     border-radius: 0;
+    box-shadow: inset 0 0 12px rgba(0,0,0,0.8), 0 0 6px rgba(255,255,255,0.4);
+    border: 1px solid #555;
   }
   
   /* Panel dividers */
   .panel-divider {
-    height: 2px;
+    height: 3px;
     background: linear-gradient(90deg, transparent, #333, transparent);
-    margin: 5px 0;
+    margin: 8px 0;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.8);
+  }
+  
+  /* Canvas height adjustment for alignment */
+  .canvas-container {
+    display: flex;
+    align-items: flex-end;
+  }
+  
+  #radarCanvas {
+    border-bottom: 3px solid #333; /* Add border to match control panel height */
   }
   </style>
 </head>
@@ -238,8 +312,8 @@
 
   <div class="main-container">
     <!-- Radar Canvas on the Left -->
-    <div class="console-border">
-      <canvas id="radarCanvas" width="700" height="600"></canvas>
+    <div class="console-border" style="display: flex; align-items: flex-end;">
+      <canvas id="radarCanvas" width="700" height="580"></canvas>
     </div>
 
     <!-- Control Panel on the Right -->
@@ -252,8 +326,8 @@
       
       <div class="panel-group">
         <h3>Active Sonar Control</h3>
-        <button id="sonarBtn">ACTIVATE SONAR (PING)</button>
-        <p style="font-size: 11px; color: #888; margin-top: 10px;">Click radar to add contacts • Pings sonar when sweep detects objects</p>
+        <button id="sonarBtn"><span>ACTIVATE SONAR (PING)</span></button>
+        <p style="font-size: 11px; color: #888; margin-top: 12px;">Click radar to add contacts • Pings sonar when sweep detects objects</p>
       </div>
 
       <div class="panel-group">
