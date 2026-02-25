@@ -35,6 +35,7 @@
     display: flex;
     gap: 25px;
     align-items: flex-end; /* Align bottoms of radar and controls */
+    position: relative;
   }
   
   .console-border {
@@ -43,6 +44,7 @@
     padding: 8px;
     background: linear-gradient(135deg, #0a0a0a 0%, #050508 100%);
     box-shadow: inset 0 0 40px rgba(0,0,0,1), 0 0 20px rgba(207,255,207,0.05);
+    position: relative;
   }
 
   canvas {
@@ -296,14 +298,10 @@
     box-shadow: inset 0 2px 4px rgba(0,0,0,0.8);
   }
   
-  /* Canvas height adjustment for alignment */
-  .canvas-container {
+  /* Fix for canvas height alignment */
+  .canvas-wrapper {
     display: flex;
     align-items: flex-end;
-  }
-  
-  #radarCanvas {
-    border-bottom: 3px solid #333; /* Add border to match control panel height */
   }
   </style>
 </head>
@@ -312,7 +310,7 @@
 
   <div class="main-container">
     <!-- Radar Canvas on the Left -->
-    <div class="console-border" style="display: flex; align-items: flex-end;">
+    <div class="console-border canvas-wrapper">
       <canvas id="radarCanvas" width="700" height="580"></canvas>
     </div>
 
