@@ -652,19 +652,27 @@ function initAudio() {
   }
 }
 
-// Play sonar ping with error handling
-function playSonarPing(bearingAngle, contactSpeed) {
+// Create a single echo ping with specified parameters
+function createEchoPing(baseFreq, volume, delay, bearingAngle, contactSpeed, dopplerFactor = 1.0) {
   try {
     if (!initAudio()) {
-      return; // Audio context not available
+      return;
     }
     
     const osc = audioCtx.createOscillator();
     const gainNode = audioCtx.createGain();
     
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
-    gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+    
+    // Apply Doppler shift based on relative speed
+    let adjustedFreq = baseFreq * dopplerFactor;
+    if (typeof contactSpeed !== 'undefined' && contactSpeed > 0) {
+      const dopplerShift = 1 + (contactSpeed * 0.03); // ±3% shift max
+      adjustedFreq *= dopplerShift;
+    }
+    
+    osc.frequency.setValueAtTime(adjustedFreq, audioCtx.currentTime);
+    gainNode.gain.setValueAtTime(volume, audioCtx.currentTime);
     gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
     
     // Stereo panning based on bearing
@@ -677,9 +685,52 @@ function playSonarPing(bearingAngle, contactSpeed) {
     
     osc.start();
     osc.stop(audioCtx.currentTime + 0.1);
+  } catch (e) {
+    console.error('Error creating echo ping:', e);
+  }
+}
 
-    // Visual ping effect
-    createSonarEchoRing(sweepAngle);
+// Play sonar ping with realistic echoes
+function playSonarPing(bearingAngle, contactSpeed) {
+  try {
+    if (!initAudio()) {
+      return;
+    }
+    
+    // Base frequency for primary ping
+    const baseFreq = 1200;
+    
+    // Primary direct path ping (immediate)
+    createEchoPing(baseFreq, 0.15, 0, bearingAngle, contactSpeed);
+    
+    // First-order echoes (shorter delay reflections) - ~60% of original volume
+    setTimeout(() => {
+      createEchoPing(baseFreq * 0.98, 0.09, 0, bearingAngle, contactSpeed, 0.98); // Slightly lower pitch
+    }, 250);
+    
+    setTimeout(() => {
+      createEchoPing(baseFreq * 1.02, 0.08, 0, bearingAngle, contactSpeed, 1.02); // Slightly higher pitch
+    }, 450);
+    
+    // Second-order echoes (medium delay reflections) - ~35% of original volume  
+    setTimeout(() => {
+      createEchoPing(baseFreq * 0.96, 0.05, 0, bearingAngle, contactSpeed, 0.96);
+    }, 800);
+    
+    setTimeout(() => {
+      createEchoPing(baseFreq * 1.04, 0.04, 0, bearingAngle, contactSpeed, 1.04);
+    }, 1200);
+    
+    // Third-order echoes (longer delay reflections) - ~15% of original volume
+    setTimeout(() => {
+      createEchoPing(baseFreq * 0.94, 0.03, 0, bearingAngle, contactSpeed, 0.94);
+    }, 1800);
+    
+    // Visual ping effects for echoes (echo rings)
+    setTimeout(() => { createSonarEchoRing(sweepAngle, 0.7); }, 250);
+    setTimeout(() => { createSonarEchoRing(sweepAngle, 0.5); }, 450);
+    setTimeout(() => { createSonarEchoRing(sweepAngle, 0.3); }, 800);
+    
   } catch (e) {
     console.error('Error playing sonar ping:', e);
   }
@@ -747,7 +798,7 @@ let sonarWaves = [];
 let echoRings = [];
 let ghostBlips = [];
 
-function createSonarEchoRing(sweepAngle) {
+function createSonarEchoRing(sweepAngle, intensity = 1.0) {
   try {
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
@@ -756,7 +807,7 @@ function createSonarEchoRing(sweepAngle) {
       x: centerX + Math.cos(sweepAngle) * (canvas.width/1.8),
       y: centerY + Math.sin(sweepAngle) * (canvas.width/1.8),
       radius: 5,
-      opacity: 0.6,
+      opacity: 0.6 * intensity,
       maxRadius: canvas.width / 1.2
     });
   } catch (e) {
