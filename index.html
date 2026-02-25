@@ -172,6 +172,21 @@
       text-shadow: 0 0 2px var(--phosphor-green);
     }
 
+    /* Coordinate Readout */
+    .coordinate-readout {
+      background: rgba(0, 20, 0, 0.7);
+      border: 1px solid var(--phosphor-dim);
+      padding: 6px;
+      margin-bottom: 8px;
+      font-size: 13px;
+      letter-spacing: 1px;
+    }
+
+    .coordinate-readout span {
+      color: var(--amber-warn);
+      text-shadow: 0 0 2px var(--amber-warn);
+    }
+
     /* Clock Display */
     .clock-display {
       font-family: 'Orbitron', sans-serif;
@@ -290,18 +305,51 @@
       margin-top: 4px;
     }
 
+    /* Fire Control Input Fields */
+    .fire-control-inputs {
+      display: grid;
+      grid-template-columns: 80px 1fr auto;
+      gap: 6px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .input-label {
+      font-size: 12px;
+      color: var(--phosphor-dim);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .fire-input {
+      background: rgba(0, 20, 0, 0.6);
+      border: 1px solid var(--phosphor-dim);
+      color: var(--amber-warn);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 14px;
+      padding: 4px 8px;
+      text-align: center;
+    }
+
+    .fire-input:focus {
+      outline: none;
+      border-color: var(--phosphor-green);
+      box-shadow: 0 0 4px rgba(0,255,65,0.3);
+    }
+
     /* Fire Control Button */
     .fire-control-btn {
       background: linear-gradient(135deg, #2a1a1a 0%, #1a0f0f 50%, #160b0b 100%);
       border: 3px inset #444;
       color: var(--red-alert);
-      padding: 14px;
+      padding: 8px 12px;
       font-family: 'Orbitron', sans-serif;
       font-weight: bold;
       cursor: pointer;
       text-transform: uppercase;
       letter-spacing: 2px;
       box-shadow: inset 0 0 15px rgba(0,0,0,0.9), 0 3px 8px rgba(0,0,0,0.6);
+      white-space: nowrap;
     }
 
     .fire-control-btn:hover {
@@ -312,6 +360,13 @@
     .fire-control-btn:active {
       transform: translateY(2px);
       border: 3px outset #666;
+    }
+
+    .fire-control-btn:disabled {
+      background: linear-gradient(135deg, #1a1a1a 0%, #141414 50%, #121212 100%);
+      border-color: var(--phosphor-dim);
+      color: var(--phosphor-faint);
+      cursor: not-allowed;
     }
 
     /* LED Indicators */
@@ -473,6 +528,12 @@
         <div class="vignette"></div>
       </div>
 
+      <!-- Coordinate Readout Panel -->
+      <h3 class="panel-label" style="font-size: 12px;">Target Coordinates</h3>
+      <div class="coordinate-readout">
+        BRG: <span id="currentBearing">--°</span> / RNG: <span id="currentRange">-- nm</span>
+      </div>
+
       <!-- Thin Label Strip -->
       <div style="margin-top: 12px; display:flex; justify-content:space-between; font-size: 13px;">
         <span>FPS: <span id="fpsDisplay" style="color:var(--phosphor-green)">60</span></span>
@@ -508,6 +569,24 @@
         </label>
         <input type="range" id="rangeSlider" min="5" max="100" value="20" step="5">
       </div>
+
+      <!-- Coordinate Input Panel -->
+      <h3 class="panel-label" style="font-size: 12px;">Target Coordinates</h3>
+      <div class="fire-control-inputs">
+        <span class="input-label">BRG</span>
+        <input type="number" id="targetBearing" class="fire-input" min="0" max="359" value="0">
+        <span class="input-label">°</span>
+      </div>
+      <div class="fire-control-inputs">
+        <span class="input-label">RNG</span>
+        <input type="number" id="targetRange" class="fire-input" min="1" max="70" value="20">
+        <span class="input-label">nm</span>
+      </div>
+
+      <!-- Fire Button -->
+      <button id="fireBtn" class="fire-control-btn" style="width: 100%; margin-bottom: 15px;">
+        FIRE
+      </button>
 
       <!-- Contact Log -->
       <h3 class="panel-label" style="font-size: 12px;">Contact Log</h3>
@@ -552,6 +631,10 @@
 // Setup canvas and context
 const canvas = document.getElementById('radarCanvas');
 const ctx = canvas.getContext('2d', { alpha: false });
+
+// Canvas dimensions
+const centerX = canvas.width / 2;
+const centerY = canvas.height / 2;
 
 // State variables
 let contacts = [
@@ -599,6 +682,14 @@ let maxDepthM = 300;
 let sonarActive = true;
 let ghostEchoesEnabled = true;
 let trailsEnabled = true;
+
+// Coordinate tracking for mouse hover
+let mouseX = null;
+let mouseY = null;
+
+// Reload state
+let isReloading = false;
+let reloadTimeLeft = 0;
 
 // Audio context for sonar - Lazy initialization
 let audioCtx = null;
@@ -652,79 +743,79 @@ function initAudio() {
   }
 }
 
-// Play sonar ping with realistic echoes using delay nodes
+// Create a single echo ping with specified parameters
+function createEchoPing(baseFreq, volume, delay, bearingAngle, contactSpeed, dopplerFactor = 1.0) {
+  try {
+    if (!initAudio()) {
+      return;
+    }
+    
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    
+    osc.type = 'sine';
+    
+    // Apply Doppler shift based on relative speed
+    let adjustedFreq = baseFreq * dopplerFactor;
+    if (typeof contactSpeed !== 'undefined' && contactSpeed > 0) {
+      const dopplerShift = 1 + (contactSpeed * 0.03); // ±3% shift max
+      adjustedFreq *= dopplerShift;
+    }
+    
+    osc.frequency.setValueAtTime(adjustedFreq, audioCtx.currentTime);
+    gainNode.gain.setValueAtTime(volume, audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+    
+    // Stereo panning based on bearing
+    const panner = audioCtx.createStereoPanner();
+    panner.pan.value = Math.sin(bearingAngle);
+    
+    osc.connect(panner);
+    panner.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.1);
+  } catch (e) {
+    console.error('Error creating echo ping:', e);
+  }
+}
+
+// Play sonar ping with realistic echoes
 function playSonarPing(bearingAngle, contactSpeed) {
   try {
     if (!initAudio()) {
       return;
     }
     
-    // Create one primary oscillator for the base ping
-    const osc = audioCtx.createOscillator();
-    const gainNode = audioCtx.createGain();
-    const panner = audioCtx.createStereoPanner();
+    // Base frequency for primary ping
+    const baseFreq = 1200;
     
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
+    // Primary direct path ping (immediate)
+    createEchoPing(baseFreq, 0.15, 0, bearingAngle, contactSpeed);
     
-    // Base volume envelope
-    gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+    // First-order echoes (shorter delay reflections) - ~60% of original volume
+    setTimeout(() => {
+      createEchoPing(baseFreq * 0.98, 0.09, 0, bearingAngle, contactSpeed, 0.98); // Slightly lower pitch
+    }, 250);
     
-    // Stereo panning based on bearing
-    panner.pan.value = Math.sin(bearingAngle);
+    setTimeout(() => {
+      createEchoPing(baseFreq * 1.02, 0.08, 0, bearingAngle, contactSpeed, 1.02); // Slightly higher pitch
+    }, 450);
     
-    osc.connect(gainNode);
-    gainNode.connect(panner);
-    panner.connect(audioCtx.destination);
+    // Second-order echoes (medium delay reflections) - ~35% of original volume  
+    setTimeout(() => {
+      createEchoPing(baseFreq * 0.96, 0.05, 0, bearingAngle, contactSpeed, 0.96);
+    }, 800);
     
-    osc.start();
-    osc.stop(audioCtx.currentTime + 0.35); // Longer duration to allow for echoes
+    setTimeout(() => {
+      createEchoPing(baseFreq * 1.04, 0.04, 0, bearingAngle, contactSpeed, 1.04);
+    }, 1200);
     
-    // Create delay nodes for realistic sonar echoes
-    const delay1 = audioCtx.createDelay();
-    delay1.delayTime.value = 0.25; // First echo: 250ms delay
-    
-    const delay2 = audioCtx.createDelay();  
-    delay2.delayTime.value = 0.45; // Second echo: 450ms delay
-    
-    const delay3 = audioCtx.createDelay();
-    delay3.delayTime.value = 0.80; // Third echo: 800ms delay
-    
-    const delay4 = audioCtx.createDelay();
-    delay4.delayTime.value = 1.20; // Fourth echo: 1200ms delay
-    
-    // Connect delay nodes to the same destination as original
-    gainNode.connect(delay1);
-    gainNode.connect(delay2);
-    gainNode.connect(delay3);
-    gainNode.connect(delay4);
-    
-    // Set volumes for each echo path
-    const echoGain1 = audioCtx.createGain();
-    echoGain1.gain.value = 0.09; // 60% of original volume
-    
-    const echoGain2 = audioCtx.createGain();  
-    echoGain2.gain.value = 0.08; // 53% of original volume
-    
-    const echoGain3 = audioCtx.createGain();
-    echoGain3.gain.value = 0.05; // 33% of original volume
-    
-    const echoGain4 = audioCtx.createGain();
-    echoGain4.gain.value = 0.04; // 27% of original volume
-    
-    // Connect delays through gain nodes to panner
-    delay1.connect(echoGain1);
-    echoGain1.connect(panner);
-    
-    delay2.connect(echoGain2);
-    echoGain2.connect(panner);
-    
-    delay3.connect(echoGain3);
-    echoGain3.connect(panner);
-    
-    delay4.connect(echoGain4);
-    echoGain4.connect(panner);
+    // Third-order echoes (longer delay reflections) - ~15% of original volume
+    setTimeout(() => {
+      createEchoPing(baseFreq * 0.94, 0.03, 0, bearingAngle, contactSpeed, 0.94);
+    }, 1800);
     
     // Visual ping effects for echoes (echo rings)
     setTimeout(() => { createSonarEchoRing(sweepAngle, 0.7); }, 250);
@@ -794,9 +885,45 @@ function playFireControl() {
   }
 }
 
+// Play explosion sound for hits
+function playExplosionSound() {
+  try {
+    if (!initAudio()) {
+      return;
+    }
+    
+    // Low frequency burst for explosion
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.4);
+    
+    gainNode.gain.setValueAtTime(0.6, audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.2);
+    
+    const panner = audioCtx.createStereoPanner();
+    panner.pan.value = Math.random() * 2 - 1;
+    
+    osc.connect(panner);
+    panner.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    
+    osc.start();
+    osc.stop(audioCtx.currentTime + 1.3);
+  } catch (e) {
+    console.error('Error playing explosion sound:', e);
+  }
+}
+
 let sonarWaves = [];
 let echoRings = [];
 let ghostBlips = [];
+
+// Animation effects arrays
+let hitEffects = []; // {x, y, radius, opacity}
+let missEffects = []; // {x, y, radius, opacity}
 
 function createSonarEchoRing(sweepAngle, intensity = 1.0) {
   try {
@@ -912,12 +1039,97 @@ function drawBackground() {
   }
 }
 
+// Draw coordinate crosshair
+function drawCoordinateCrosshair() {
+  if (mouseX !== null && mouseY !== null) {
+    // Draw crosshair lines
+    ctx.strokeStyle = "rgba(255, 140, 0, 0.6)";
+    ctx.lineWidth = 1;
+    
+    ctx.beginPath();
+    ctx.moveTo(mouseX - 10, mouseY);
+    ctx.lineTo(mouseX + 10, mouseY);
+    ctx.stroke();
+    
+    ctx.beginPath();
+    ctx.moveTo(mouseX, mouseY - 10);
+    ctx.lineTo(mouseX, mouseY + 10);
+    ctx.stroke();
+    
+    // Draw small circle at cursor
+    ctx.strokeStyle = "rgba(255, 140, 0, 0.8)";
+    ctx.beginPath();
+    ctx.arc(mouseX, mouseY, 3, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
+// Animation effect rendering
+function drawAnimationEffects() {
+  // Draw hit effects (expanding orange/red circles)
+  for (let i = hitEffects.length - 1; i >= 0; i--) {
+    const effect = hitEffects[i];
+    
+    if (effect.opacity <= 0) {
+      hitEffects.splice(i, 1);
+      continue;
+    }
+    
+    ctx.strokeStyle = `rgba(255, 69, 0, ${effect.opacity})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(effect.x, effect.y, effect.radius, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    // Inner circle for explosion effect
+    ctx.fillStyle = `rgba(255, 165, 0, ${effect.opacity * 0.3})`;
+    ctx.beginPath();
+    ctx.arc(effect.x, effect.y, effect.radius * 0.7, 0, Math.PI * 2);
+    ctx.fill();
+    
+    effect.radius += 4;
+    effect.opacity -= 0.015; // Fade over ~1.5 seconds (100 frames at 60fps)
+  }
+  
+  // Draw miss effects (small white splash circles)
+  for (let i = missEffects.length - 1; i >= 0; i--) {
+    const effect = missEffects[i];
+    
+    if (effect.opacity <= 0) {
+      missEffects.splice(i, 1);
+      continue;
+    }
+    
+    ctx.strokeStyle = `rgba(255, 255, 255, ${effect.opacity})`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(effect.x, effect.y, effect.radius, 0, Math.PI * 2);
+    ctx.stroke();
+    
+    // Small cross for miss
+    if (effect.radius > 8) {
+      ctx.strokeStyle = `rgba(255, 255, 255, ${effect.opacity})`;
+      ctx.lineWidth = 1;
+      
+      ctx.beginPath();
+      ctx.moveTo(effect.x - 4, effect.y);
+      ctx.lineTo(effect.x + 4, effect.y);
+      ctx.stroke();
+      
+      ctx.beginPath();
+      ctx.moveTo(effect.x, effect.y - 4);
+      ctx.lineTo(effect.x, effect.y + 4);
+      ctx.stroke();
+    }
+    
+    effect.radius += 3;
+    effect.opacity -= 0.025; // Fade over ~0.8 seconds (64 frames at 60fps)
+  }
+}
+
 // Draw contacts with trails and authentic radar behavior
 function drawContacts() {
   try {
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
-
     const trailLength = Math.PI / 6;
     let sweepStartAngle = sweepAngle - trailLength;
     let sweepEndAngle = sweepAngle;
@@ -1097,8 +1309,6 @@ function drawContacts() {
 // Draw radar sweep
 function drawRadarSweep() {
   try {
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
     const radius = Math.hypot(centerX, centerY);
 
     ctx.globalCompositeOperation = 'lighter';
@@ -1291,6 +1501,29 @@ function updateClock() {
   }
 }
 
+// Update coordinate display
+function updateCoordinateDisplay() {
+  if (mouseX !== null && mouseY !== null) {
+    const dx = mouseX - centerX;
+    const dy = mouseY - centerY;
+    
+    // Calculate bearing in degrees (0-359)
+    let bearingRad = Math.atan2(dy, dx);
+    if (bearingRad < 0) bearingRad += Math.PI * 2;
+    const bearingDeg = Math.round(bearingRad * 180 / Math.PI);
+    
+    // Calculate range in nautical miles
+    const distPx = Math.sqrt(dx*dx + dy*dy);
+    const rangeNm = Math.round(distPx / 5);
+    
+    document.getElementById('currentBearing').textContent = `${bearingDeg.toString().padStart(3, '0')}°`;
+    document.getElementById('currentRange').textContent = `${rangeNm} nm`;
+  } else {
+    document.getElementById('currentBearing').textContent = '--°';
+    document.getElementById('currentRange').textContent = '-- nm';
+  }
+}
+
 // Update acoustic environment data
 function updateAcousticData() {
   try {
@@ -1328,13 +1561,33 @@ function animate() {
       lastUtcUpdate = now;
     }
 
+    // Update reload timer
+    if (isReloading) {
+      reloadTimeLeft--;
+      const btn = document.getElementById('fireBtn');
+      if (reloadTimeLeft > 0) {
+        btn.textContent = `RELOAD ${reloadTimeLeft}...`;
+      } else {
+        isReloading = false;
+        reloadTimeLeft = 0;
+        btn.textContent = 'FIRE';
+        btn.disabled = false;
+      }
+    }
+
     // Clear canvas with slight fade for motion blur
     ctx.fillStyle = "rgba(10, 26, 42, 0.3)";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     drawBackground();
+    
+    if (mouseX !== null && mouseY !== null) {
+      drawCoordinateCrosshair();
+    }
+    
     drawContacts();
     drawRadarSweep();
+    drawAnimationEffects();
 
     requestAnimationFrame(animate);
   } catch (e) {
@@ -1383,6 +1636,23 @@ canvas.addEventListener('click', (e) => {
   }
 });
 
+// Mouse move handler for coordinate tracking
+canvas.addEventListener('mousemove', (e) => {
+  try {
+    const rect = canvas.getBoundingClientRect();
+    mouseX = e.clientX - rect.left;
+    mouseY = e.clientY - rect.top;
+  } catch (e) {
+    console.error('Error tracking mouse coordinates:', e);
+  }
+});
+
+// Mouse leave handler to clear coordinate display
+canvas.addEventListener('mouseleave', () => {
+  mouseX = null;
+  mouseY = null;
+});
+
 // LED Toggle Functions
 function toggleSonar() {
   sonarActive = !sonarActive;
@@ -1429,7 +1699,7 @@ depthSlider.addEventListener('input', () => {
   maxDepthM = parseInt(depthSlider.value);
 });
 
-// Fire control button handler
+// Fire control button handler (torpedo control)
 document.getElementById('fireControlBtn').addEventListener('click', () => {
   playFireControl();
   
@@ -1468,6 +1738,93 @@ document.querySelectorAll('.tube-btn').forEach(tubeBtn => {
     }
   });
 });
+
+// Coordinate input and fire button handlers
+const targetBearingInput = document.getElementById('targetBearing');
+const targetRangeInput = document.getElementById('targetRange');
+const fireBtn = document.getElementById('fireBtn');
+
+function calculateTargetCoordinates(bearingDeg, rangeNm) {
+  const bearingRad = (bearingDeg * Math.PI / 180);
+  const distPx = rangeNm * 5; // 5px = 1nm
+  
+  const x = centerX + Math.cos(bearingRad) * distPx;
+  const y = centerY + Math.sin(bearingRad) * distPx;
+  
+  return { x, y };
+}
+
+function fireWeapon() {
+  if (isReloading) return;
+  
+  const bearing = parseInt(targetBearingInput.value);
+  const range = parseInt(targetRangeInput.value);
+  
+  // Validate inputs
+  if (isNaN(bearing) || bearing < 0 || bearing > 359) {
+    addLogEntry('INVALID TARGET — BEARING MUST BE 0-359°', 'system');
+    return;
+  }
+  
+  if (isNaN(range) || range < 1 || range > 70) {
+    addLogEntry('INVALID TARGET — RANGE MUST BE 1-70 NM', 'system');
+    return;
+  }
+  
+  // Calculate target coordinates
+  const { x, y } = calculateTargetCoordinates(bearing, range);
+  
+  // Check for contacts within 15px of target point
+  let hitContact = null;
+  let minDistance = Infinity;
+  
+  for (const contact of contacts) {
+    const dx = contact.x - x;
+    const dy = contact.y - y;
+    const distance = Math.sqrt(dx*dx + dy*dy);
+    
+    if (distance < 15 && distance < minDistance) {
+      minDistance = distance;
+      hitContact = contact;
+    }
+  }
+  
+  if (hitContact) {
+    // DIRECT HIT
+    playExplosionSound();
+    
+    // Add expanding orange/red circle animation
+    hitEffects.push({
+      x: hitContact.x,
+      y: hitContact.y,
+      radius: 5,
+      opacity: 1.0
+    });
+    
+    // Remove contact from array
+    contacts = contacts.filter(c => c !== hitContact);
+    
+    addLogEntry(`DIRECT HIT — ${hitContact.id}`, 'system');
+  } else {
+    // MISS - Add small white splash circle animation
+    missEffects.push({
+      x: x,
+      y: y,
+      radius: 3,
+      opacity: 1.0
+    });
+    
+    addLogEntry(`MISS — BRG:${bearing}° RNG:${range}nm`, 'system');
+  }
+  
+  // Start reload timer
+  isReloading = true;
+  reloadTimeLeft = 3;
+  fireBtn.disabled = true;
+  fireBtn.textContent = 'RELOAD 3...';
+}
+
+fireBtn.addEventListener('click', fireWeapon);
 
 // Start the animation
 animate();
